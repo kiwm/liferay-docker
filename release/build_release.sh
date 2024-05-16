@@ -26,6 +26,16 @@ function check_usage {
 		print_help
 	fi
 
+	if [ -z "${LIFERAY_RELEASE_SOFT}" ]
+	then
+		LIFERAY_RELEASE_SOFT="false"
+	fi
+
+	if [ "${LIFERAY_RELEASE_SOFT}" == "true" ] && { [ -z "${LIFERAY_RELEASE_TICKETS}" ] || [ -z "${LIFERAY_RELEASE_GIT_PREV_REF}" ]; }
+    then
+        print_help
+    fi
+
 	_BUILD_TIMESTAMP=$(date +%s)
 
 	if [ -z "${LIFERAY_RELEASE_HOTFIX_ID}" ]
@@ -139,6 +149,8 @@ function main {
 
 		lc_time_run upload_release
 	else
+		#lc_time_run create_branch
+
 		lc_time_run prepare_release_dir
 
 		lc_time_run copy_release_info_date
@@ -198,7 +210,9 @@ function print_help {
 	echo "The script reads the following environment variables:"
 	echo ""
 	echo "    LIFERAY_RELEASE_GCS_TOKEN (optional): *.json file containing the token to authenticate with Google Cloud Storage"
+	echo "    LIFERAY_RELEASE_GIT_PREV_REF (required if LIFERAY_RELEASE_SOFT is equals to \"true\"): Previous branch to build from"
 	echo "    LIFERAY_RELEASE_GIT_REF: Git SHA to build from"
+	echo "    LIFERAY_RELEASE_GITHUB_TOKEN: Token to authenticate with Github"
 	echo "    LIFERAY_RELEASE_HOTFIX_BUILD_ID (optional): Build ID on Patcher"
 	echo "    LIFERAY_RELEASE_HOTFIX_FIXED_ISSUES (optional): Comma delimited list of fixed issues in the hotfix"
 	echo "    LIFERAY_RELEASE_HOTFIX_ID (optional): Hotfix ID"
@@ -210,6 +224,8 @@ function print_help {
 	echo "    LIFERAY_RELEASE_PATCHER_REQUEST_KEY (optional): Request key from Patcher that is used to report back statuses to Patcher"
 	echo "    LIFERAY_RELEASE_PATCHER_USER_ID (optional): User ID of the patcher user who started the build"
 	echo "    LIFERAY_RELEASE_PRODUCT_NAME (optional): Set to \"portal\" for CE. The default is \"DXP\"."
+	echo "    LIFERAY_RELEASE_SOFT: Set to \"true\" for a soft release. The default is \"false\"."
+	echo "    LIFERAY_RELEASE_TICKETS (required if LIFERAY_RELEASE_SOFT is equals to \"true\"): Comma delimited list of tickets to be added to the release"
 	echo "    LIFERAY_RELEASE_UPLOAD (optional): Set this to \"true\" to upload artifacts"
 	echo ""
 	echo "Example: LIFERAY_RELEASE_GIT_REF=release-2023.q3 ${0}"
