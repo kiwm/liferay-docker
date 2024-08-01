@@ -158,14 +158,12 @@ function upload_release {
 }
 
 function upload_to_docker_hub {
-	_update_bundles_yml
-
 	lc_cd "${BASE_DIR}"
 
 	LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}" ./build_all_images.sh --push
 }
 
-function _update_bundles_yml {
+function update_bundles_yml {
 	if (yq eval ".quarterly | has(\"${_PRODUCT_VERSION}\")" "${BASE_DIR}/bundles.yml" | grep -q "true")
 	then
 		lc_log INFO "The ${_PRODUCT_VERSION} product version was already published."
