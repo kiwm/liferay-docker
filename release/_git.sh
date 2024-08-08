@@ -1,5 +1,44 @@
 #!/bin/bash
 
+source _github.sh
+
+function cherry_pick_commits {
+	local liferay_release_tickets_array
+
+	IFS=',' read -ra liferay_release_tickets_array <<< "${LIFERAY_RELEASE_TICKETS}"
+
+	lc_cd "${_PROJECTS_DIR}"/liferay-portal-ee
+
+	git pull origin -q "${LIFERAY_RELEASE_GIT_REF}"
+
+	for liferay_release_ticket in "${liferay_release_tickets_array[@]}"
+	do
+		git checkout -q master
+
+		local liferay_release_commits_sha
+
+		read -r -d '' -a liferay_release_commits_sha < <(git log --grep="${liferay_release_ticket}" --pretty=format:%H --reverse)
+
+		git checkout -q "${LIFERAY_RELEASE_GIT_REF}"
+
+		for liferay_release_commit_sha in "${liferay_release_commits_sha[@]}"
+		do
+			git cherry-pick --strategy-option theirs "${liferay_release_commit_sha}" > /dev/null
+
+			if [ $? -eq 0 ]
+			then
+				lc_log INFO "Cherry-pick of commit ${liferay_release_commit_sha} successful."
+			else
+				lc_log ERROR "Cherry-pick of commit ${liferay_release_commit_sha} failed."
+
+				return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+			fi
+		done
+	done
+
+	git push origin -q "${LIFERAY_RELEASE_GIT_REF}"
+}
+
 function clean_portal_repository {
 	lc_cd "${_PROJECTS_DIR}"/liferay-portal-ee
 
@@ -155,6 +194,47 @@ function update_portal_repository {
 	git status
 
 	echo "${LIFERAY_RELEASE_GIT_REF}" > "${_BUILD_DIR}"/liferay-portal-ee.sha
+}
+
+function create_branch {
+	local original_branch_name="master"
+
+	if [ "${LIFERAY_RELEASE_SOFT}" == "true" ]
+	then
+		original_branch_name="${LIFERAY_RELEASE_GIT_PREV_REF}"
+	fi
+
+	local last_commit=$(invoke_github_get_api "https://api.github.com/repos/liferay/liferay-portal-ee/git/refs/heads/${original_branch_name}")
+
+	if [ $? -eq "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}" ]
+	then
+		lc_log ERROR "Unable to get the last commit from the ${original_branch_name} branch."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
+
+	local commits_interval_json=$(\
+		jq \
+			-n \
+			--arg ref "refs/heads/${LIFERAY_RELEASE_GIT_REF}" \
+			--arg last_commit_sha "$(echo "${last_commit}" | jq -r '.object.sha')" \
+			'{ref: $ref, sha: $last_commit_sha}')
+
+	invoke_github_post_api "https://api.github.com/repos/liferay/liferay-portal-ee/git/refs/" "${commits_interval_json}"
+
+	if [ $? -eq "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}" ]
+	then
+		lc_log ERROR "Unable to create the ${LIFERAY_RELEASE_GIT_REF} branch."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
+
+	lc_log INFO "${LIFERAY_RELEASE_GIT_REF} branch successful created."
+
+	if [ "${LIFERAY_RELEASE_SOFT}" == "true" ]
+	then
+		cherry_pick_commits
+	fi
 }
 
 function update_release_tool_repository {
