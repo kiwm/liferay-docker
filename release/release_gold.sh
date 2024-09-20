@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source _github.sh
+source _git.sh
 source _liferay_common.sh
 source _product_info_json.sh
 source _promotion.sh
@@ -37,6 +38,7 @@ function check_usage {
 
 	_RELEASE_ROOT_DIR="${PWD}"
 
+	_PROJECTS_DIR="${_RELEASE_ROOT_DIR}/dev/projects"
 	_PROMOTION_DIR="${_RELEASE_ROOT_DIR}/release-data/promotion/files"
 
 	rm -fr "${_PROMOTION_DIR}"
@@ -48,7 +50,25 @@ function check_usage {
 	LIFERAY_COMMON_LOG_DIR="${_PROMOTION_DIR%/*}"
 }
 
+function commit_to_branch {
+	git add "${1}"
+
+	git commit -m "${2}"
+
+	git push upstream "${3}"
+
+	if [ "${?}" -ne 0 ]
+	then
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
+}
+
 function main {
+	if [[ " ${@} " =~ " --test " ]]
+	then
+		return
+	fi
+
 	check_usage
 
 	check_supported_versions
@@ -77,11 +97,36 @@ function main {
 
 	lc_time_run test_boms
 
+	lc_background_run clone_repository liferay-portal-ee
+
+	lc_wait
+
 	lc_time_run prepare_next_release_branch
+
+	lc_time_run update_release_info_date
 
 	#lc_time_run upload_to_docker_hub
 
 	lc_time_run add_patcher_project_version
+}
+
+function prepare_branch_to_commit {
+	lc_cd "${_PROJECTS_DIR}/liferay-portal-ee"
+
+	git restore .
+
+	git checkout master
+
+	git branch --delete "${1}" &> /dev/null
+
+	git fetch --no-tags upstream "${1}":"${1}" &> /dev/null
+
+	git checkout "${1}" &> /dev/null
+
+	if [ $(git rev-parse --abbrev-ref HEAD 2>/dev/null) != "${1}" ]
+	then
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
 }
 
 function prepare_next_release_branch {
@@ -112,35 +157,32 @@ function prepare_next_release_branch {
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 	fi
 
-	lc_cd "${BASE_DIR}/liferay-portal-ee"
-
 	local quarterly_release_branch_name="release-${product_group_version}"
 
-	git branch --delete "${quarterly_release_branch_name}" &> /dev/null
+	prepare_branch_to_commit "${quarterly_release_branch_name}"
 
-	git fetch --no-tags upstream "${quarterly_release_branch_name}":"${quarterly_release_branch_name}" &> /dev/null
-
-	git checkout "${quarterly_release_branch_name}" &> /dev/null
-
-	local next_project_version_suffix="$(echo "${_PRODUCT_VERSION}" | cut -d '.' -f 3)"
-
-	next_project_version_suffix=$((next_project_version_suffix + 1))
-
-	sed -e "s/${product_group_version^^}\.[0-9]*/${product_group_version^^}\.${next_project_version_suffix}/" -i "${BASE_DIR}/liferay-portal-ee/release.properties"
-
-	git add "${BASE_DIR}/liferay-portal-ee/release.properties"
-
-	git commit -m "Prepare ${quarterly_release_branch_name}."
-
-	git push upstream "${quarterly_release_branch_name}"
-
-	if [ "${?}" -ne 0 ]
+	if [ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
 	then
 		lc_log ERROR "Unable to prepare the next release branch."
 
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	else
-		lc_log INFO "The next release branch was prepared successfully."
+		local next_project_version_suffix="$(echo "${_PRODUCT_VERSION}" | cut -d '.' -f 3)"
+
+		next_project_version_suffix=$((next_project_version_suffix + 1))
+
+		sed -e "s/${product_group_version^^}\.[0-9]*/${product_group_version^^}\.${next_project_version_suffix}/" -i "${_PROJECTS_DIR}/liferay-portal-ee/release.properties"
+
+		commit_to_branch "${_PROJECTS_DIR}/liferay-portal-ee/release.properties" "Prepare ${quarterly_release_branch_name}." "${quarterly_release_branch_name}"
+
+		if [ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
+		then
+			lc_log ERROR "Unable to commit to the release branch."
+
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		else
+			lc_log INFO "The next release branch was prepared successfully."
+		fi
 	fi
 }
 
@@ -317,4 +359,37 @@ function test_boms {
 	fi
 }
 
-main
+function update_release_info_date {
+	if [[ "${_PRODUCT_VERSION}" != *q* ]] ||
+	   [[ "$(echo "${_PRODUCT_VERSION}" | cut -d '.' -f 3)" -eq 0 ]] ||
+	   [[ "$(echo "${_PRODUCT_VERSION}" | cut -d '.' -f 1)" -lt 2024 ]]
+	then
+		lc_log INFO "Skipping the release info update."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+
+	if [[ "$(echo "${_PRODUCT_VERSION}" | cut -d '.' -f 1)" -eq 2024 ]] &&
+	   [[ "$(echo "${_PRODUCT_VERSION}" | cut -d '.' -f 2 | tr -d q)" -le 2 ]] &&
+	   [[ "$(echo "${_PRODUCT_VERSION}" | cut -d '.' -f 3)" -le 11 ]]
+	then
+		lc_log INFO "Skipping the release info update."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+
+	if [[ ! " ${@} " =~ " --test " ]]
+	then
+		local product_group_version="$(echo "${_PRODUCT_VERSION}" | cut -d '.' -f 1,2)"
+
+		local quarterly_release_branch_name="release-${product_group_version}"
+
+		prepare_branch_to_commit "${quarterly_release_branch_name}"
+
+		sed -e "s/release.info.date=.*/release.info.date=$(date -d @"${LIFERAY_RELEASE_RC_BUILD_TIMESTAMP}" +"%B %-d, %Y")/" -i release.properties
+
+		commit_to_branch "${_PROJECTS_DIR}/liferay-portal-ee/release.properties" "Updating the release info date for ${_PRODUCT_VERSION}." "${quarterly_release_branch_name}"
+	fi
+}
+
+main "${@}"
