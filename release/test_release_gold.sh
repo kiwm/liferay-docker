@@ -1,12 +1,16 @@
 #!/bin/bash
 
 source ../_test_common.sh
+source release_gold.sh --test
 source _github.sh
+source _liferay_common.sh
 
 function main {
 	set_up
 
 	test_invoke_github_api_post
+	test_not_update_release_info_date
+	test_update_release_info_date
 
 	tear_down
 }
@@ -16,6 +20,7 @@ function set_up {
 	export LIFERAY_COMMON_EXIT_CODE_SKIPPED=4
 	export LIFERAY_RELEASE_REPOSITORY_OWNER="natocesarrego"
 	export LIFERAY_RELEASE_VERSION="test-tag"
+	export _PROJECTS_DIR="${PWD}"/../..
 }
 
 function tear_down {
@@ -25,6 +30,12 @@ function tear_down {
 	unset LIFERAY_COMMON_EXIT_CODE_SKIPPED
 	unset LIFERAY_RELEASE_REPOSITORY_OWNER
 	unset LIFERAY_RELEASE_VERSION
+
+	cd "${_PROJECTS_DIR}/liferay-portal-ee"
+
+	git restore .
+
+	unset _PROJECTS_DIR
 }
 
 function test_invoke_github_api_post {
@@ -49,7 +60,35 @@ function test_invoke_github_api_post {
 		END
 	)
 
-	assert_equals $(invoke_github_api_post "liferay-portal-ee/git/tags" "${tag_data}") "${LIFERAY_COMMON_EXIT_CODE_OK}" $(invoke_github_api_post "liferay-portal-ee/git/refs" "${ref_data}") "${LIFERAY_COMMON_EXIT_CODE_OK}"
+	assert_equals "$(invoke_github_api_post "liferay-portal-ee/git/tags" "${tag_data}")" "${LIFERAY_COMMON_EXIT_CODE_OK}" "$(invoke_github_api_post "liferay-portal-ee/git/refs" "${ref_data}")" "${LIFERAY_COMMON_EXIT_CODE_OK}"
+}
+
+function test_not_update_release_info_date {
+	_test_not_update_release_info_date "2024.q2.11" "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	_test_not_update_release_info_date "2024.q3.0" "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	_test_not_update_release_info_date "7.3.10-u36" "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	_test_not_update_release_info_date "7.4.13-u101" "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	_test_not_update_release_info_date "7.4.3.125-ga125" "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+}
+
+function test_update_release_info_date {
+	_PRODUCT_VERSION="2024.q2.12"
+
+	update_release_info_date --test 1> /dev/null
+
+	assert_equals \
+		"$(lc_get_property "${_PROJECTS_DIR}"/liferay-portal-ee/release.properties "release.info.date")" \
+		"$(date -d "next monday" +"%B %-d, %Y")"
+}
+
+function _test_not_update_release_info_date {
+	_PRODUCT_VERSION="${1}"
+
+	echo -e "Running _test_not_update_release_info_date for ${_PRODUCT_VERSION}\n"
+
+	update_release_info_date --test 1> /dev/null
+
+	assert_equals "${?}" "${2}"
 }
 
 main
