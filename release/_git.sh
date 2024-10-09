@@ -14,6 +14,17 @@ function clean_portal_repository {
 	git reset --hard && git clean -dfx
 }
 
+function clean_repository {
+	lc_cd "${_PROJECTS_DIR}/${1}"
+
+	if (git reset --hard && git clean -dfx)
+	then
+		return "${LIFERAY_COMMON_EXIT_CODE_OK}"
+	fi
+
+	return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+}
+
 function clone_repository {
 	if [ -e "${_PROJECTS_DIR}/${1}" ]
 	then
