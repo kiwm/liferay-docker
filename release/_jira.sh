@@ -58,7 +58,6 @@ function create_jira_ticket {
 }
 
 function _invoke_jira_api {
-
 	local http_response=$(curl \
 		"${1}" \
 		--data "${2}" \
