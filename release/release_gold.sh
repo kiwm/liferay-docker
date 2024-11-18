@@ -311,12 +311,12 @@ function reference_new_releases {
 
 	local ticket_key="$(\
 		create_jira_ticket \
-		"60a3f462391e56006e6b661b" \
-		"Release Tester" \
-		"Task" \
-		"LRCI" \
-		"Add release references for ${_PRODUCT_VERSION}" \
-		"customfield_10001" "04c03e90-c5a7-4fda-82f6-65746fe08b83")"
+			"60a3f462391e56006e6b661b" \
+			"Release Tester" \
+			"Task" \
+			"LRCI" \
+			"Add release references for ${_PRODUCT_VERSION}" \
+			"customfield_10001" "04c03e90-c5a7-4fda-82f6-65746fe08b83")"
 
 	if [ "${ticket_key}" == "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
 	then
@@ -326,11 +326,10 @@ function reference_new_releases {
 	fi
 
 	commit_to_branch_and_send_pull_request \
-	"${_PROJECTS_DIR}/liferay-jenkins-ee/commands/build.properties" \
-	"${ticket_key} Add release references for ${_PRODUCT_VERSION}" \
-	"new_releases_branch" \
-	"master" \
-	"pyoo47/liferay-jenkins-ee"
+		"${_PROJECTS_DIR}/liferay-jenkins-ee/commands/build.properties" \
+		"${ticket_key} Add release references for ${_PRODUCT_VERSION}" \
+		"new_releases_branch" \
+		"pyoo47/liferay-jenkins-ee"
 
 	if [ "${?}" -ne 0 ]
 	then

@@ -38,7 +38,7 @@ function create_jira_ticket {
 				},
 				"components": [
 					{
-					"name": "${2}"
+						"name": "${2}"
 					}
 				],
 				"issuetype": {
