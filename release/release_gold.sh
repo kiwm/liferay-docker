@@ -65,7 +65,7 @@ function commit_to_branch_and_send_pull_request {
 	gh pr create \
 		--body "Created by the Release team automation." \
 		--head "liferay-release:${3}" \
-		--repo "${5}" \
+		--repo "${4}" \
 		--title "${2}"
 
 	if [ "${?}" -ne 0 ]
