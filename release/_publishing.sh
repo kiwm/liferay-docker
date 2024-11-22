@@ -260,11 +260,13 @@ function upload_release {
 }
 
 function upload_to_docker_hub {
-	_update_bundles_yml
+	#_update_bundles_yml
 
-	lc_cd "${BASE_DIR}"
+	#lc_cd "${BASE_DIR}"
 
-	LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}" ./build_all_images.sh --push
+	lc_cd "${_RELEASE_ROOT_DIR}"
+
+	LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}" ../build_all_images.sh
 }
 
 function _update_bundles_yml {
