@@ -71,125 +71,21 @@ function main {
 
 	check_usage
 
-	lc_time_run configure_jdk
+	git remote -v
 
-	lc_time_run report_jenkins_url
+	git config user.name
 
-	if [ -d "${_RELEASE_ROOT_DIR}/dev/projects" ]
-	then
-		lc_background_run clone_repository liferay-binaries-cache-2020
-		lc_background_run clone_repository liferay-portal-ee
-		lc_background_run clone_repository liferay-release-tool-ee
+	git config user.email
 
-		lc_wait
-	fi
-
-	lc_time_run clean_portal_repository
-
-	lc_background_run init_gcs
-	lc_background_run update_portal_repository
-
-	lc_wait
-
-	lc_time_run set_git_sha
-
-	lc_background_run decrement_module_versions
-	lc_background_run update_release_tool_repository
-
-	lc_wait
-
-	lc_time_run set_product_version
-
-	if [ "${LIFERAY_RELEASE_OUTPUT}" != "hotfix" ]
-	then
-		lc_time_run set_artifact_versions "${_PRODUCT_VERSION}" "${_BUILD_TIMESTAMP}"
-
-		lc_time_run update_release_info_date
-
-		lc_time_run set_up_profile
-
-		lc_time_run add_licensing
-
-		lc_time_run compile_product
-
-		lc_time_run obfuscate_licensing
-
-		lc_time_run build_product
-
-		lc_background_run build_sql
-		lc_background_run copy_copyright
-		lc_background_run deploy_elasticsearch_sidecar
-		lc_background_run clean_up_ignored_dxp_modules
-		lc_background_run clean_up_ignored_dxp_plugins
-
-		lc_wait
-
-		lc_time_run install_patching_tool
-
-		lc_time_run generate_api_jars
-
-		lc_time_run generate_api_source_jar
-
-		lc_time_run generate_distro_jar
-
-		generate_poms
-
-		lc_time_run warm_up_tomcat
-
-		lc_time_run package_release
-
-		lc_time_run package_boms
-
-		lc_time_run generate_checksum_files
-
-		lc_time_run generate_release_properties_file
-
-		lc_time_run generate_release_notes
-
-		lc_time_run upload_boms xanadu
-
-		lc_time_run upload_release
-	else
-		lc_time_run prepare_release_dir
-
-		lc_time_run copy_release_info_date
-
-		lc_time_run set_up_profile
-
-		lc_time_run add_hotfix_testing_code
-
-		lc_time_run set_hotfix_name
-
-		lc_time_run add_licensing
-
-		lc_time_run compile_product
-
-		lc_time_run obfuscate_licensing
-
-		lc_time_run build_product
-
-		lc_time_run clean_up_ignored_dxp_modules
-
-		lc_time_run clean_up_ignored_dxp_plugins
-
-		lc_time_run add_portal_patcher_properties_jar
-
-		lc_time_run add_portal_patcher_service_properties_jar
-
-		lc_time_run create_hotfix
-
-		lc_time_run calculate_checksums
-
-		lc_time_run create_documentation
-
-		lc_time_run sign_hotfix
-
-		lc_time_run package_hotfix
-
-		lc_time_run upload_hotfix
-
-		lc_time_run report_patcher_status
-	fi
+	echo "${PWD}"
+	echo "JAVA_HOME=${JAVA_HOME}"
+	echo "PATH=${PATH}"
+	ant -version
+	export _PRODUCT_VERSION="7.4.13-u132"
+	set_jdk_version
+	echo "JAVA_HOME=${JAVA_HOME}"
+	echo "PATH=${PATH}"
+	java -version
 
 	local end_time=$(date +%s)
 
