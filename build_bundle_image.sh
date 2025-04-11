@@ -3,6 +3,11 @@
 source ./_common.sh
 
 function build_docker_image {
+	if [ "${LIFERAY_DOCKER_SLIM}" == "true" ]
+	then
+		DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}-slim
+	fi
+
 	if [[ ${LIFERAY_DOCKER_RELEASE_FILE_URL%} == */snapshot-* ]]
 	then
 		DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}-snapshot
@@ -136,25 +141,13 @@ function check_release {
 function check_usage {
 	if [ ! -n "${LIFERAY_DOCKER_RELEASE_FILE_URL}" ]
 	then
-		echo "Usage: ${0} --push"
-		echo ""
-		echo "The script reads the following environment variables:"
-		echo ""
-		echo "    LIFERAY_DOCKER_DEVELOPER_MODE (optional): If set to \"true\", all local images will be deleted before building a new one"
-		echo "    LIFERAY_DOCKER_FIX_PACK_URL (optional): URL to a fix pack"
-		echo "    LIFERAY_DOCKER_HUB_TOKEN (optional): Docker Hub token to log in automatically"
-		echo "    LIFERAY_DOCKER_HUB_USERNAME (optional): Docker Hub username to log in automatically"
-		echo "    LIFERAY_DOCKER_IMAGE_PLATFORMS (optional): Comma separated Docker image platforms to build when the \"push\" parameter is set"
-		echo "    LIFERAY_DOCKER_LICENSE_API_HEADER (required for DXP): API header used to generate the trial license"
-		echo "    LIFERAY_DOCKER_LICENSE_API_URL (required for DXP): API URL to generate the trial license"
-		echo "    LIFERAY_DOCKER_RELEASE_FILE_URL (required): URL to a Liferay bundle"
-		echo "    LIFERAY_DOCKER_REPOSITORY (optional): Docker repository"
-		echo ""
-		echo "Example: LIFERAY_DOCKER_RELEASE_FILE_URL=files.liferay.com/private/ee/portal/7.2.10/liferay-dxp-tomcat-7.2.10-ga1-20190531140450482.7z ${0} push"
-		echo ""
-		echo "Set \"push\" as a parameter to automatically push the image to Docker Hub."
+		print_help
+	fi
 
-		exit 1
+	if [ -n "${LIFERAY_DOCKER_ELASTICSEARCH_NETWORK_ADDRESSES}" ] &&
+	   [[ ! "${LIFERAY_DOCKER_ELASTICSEARCH_NETWORK_ADDRESSES}" =~ \[(\"(http|https):\/\/[-\d\w]+\:[\d]+\")+(\,)*(\s)*(\"(http|https):\/\/[-\d\w]+\:[\d]+\")*\] ]]
+	then
+		print_help
 	fi
 
 	check_utils 7z curl docker java unzip
@@ -169,6 +162,19 @@ function download_trial_dxp_license {
 		then
 			exit 4
 		fi
+	fi
+}
+
+function get_latest_tomcat_version {
+	local tomcat_version=$(get_tomcat_version "${TEMP_DIR}/liferay")
+
+	if [[ "${tomcat_version}" == "9.0"* ]]
+	then
+		echo "9.0.102"
+	else
+		echo "Unable to get latest Tomcat version for ${1}."
+
+		exit 1
 	fi
 }
 
@@ -212,6 +218,11 @@ function main {
 
 	prepare_tomcat
 
+	if [ -n "${LIFERAY_DOCKER_SLIM}" ]
+	then
+		prepare_slim_image
+	fi
+
 	download_trial_dxp_license
 
 	build_docker_image
@@ -223,6 +234,17 @@ function main {
 	push_docker_image "${1}"
 
 	clean_up_temp_directory
+}
+
+function prepare_slim_image {
+	rm -fr "${TEMP_DIR}/liferay/elasticsearch-sidecar"
+
+	touch "${TEMP_DIR}/liferay/osgi/configs/com.liferay.portal.search.elasticsearch7.configuration.ElasticsearchConfiguration.config"
+
+	(
+		echo "networkHostAddresses=\"${LIFERAY_DOCKER_ELASTICSEARCH_NETWORK_ADDRESSES}\""
+		echo "productionModeEnabled=B\"true\""
+	) > "${TEMP_DIR}/liferay/osgi/configs/com.liferay.portal.search.elasticsearch7.configuration.ElasticsearchConfiguration.config"
 }
 
 function prepare_temp_directory {
@@ -246,6 +268,62 @@ function prepare_temp_directory {
 	fi
 
 	mv "${TEMP_DIR}/liferay-"* "${TEMP_DIR}/liferay"
+
+	local tomcat_version=$(get_latest_tomcat_version)
+
+	local tomcat_download_dir="downloads/tomcat/apache-tomcat-${tomcat_version}"
+	local tomcat_url="https://dlcdn.apache.org/tomcat/tomcat-${tomcat_version%%.*}/v${tomcat_version}/bin/apache-tomcat-${tomcat_version}.zip"
+
+	download "${tomcat_download_dir}/apache-tomcat.zip" "${tomcat_url}"
+
+	mv "${TEMP_DIR}/liferay/tomcat" "${TEMP_DIR}/liferay/tomcat-temp"
+
+	unzip -d "${TEMP_DIR}/liferay" -q "${tomcat_download_dir}/apache-tomcat.zip" || exit 3
+
+	mv "${TEMP_DIR}/liferay/apache-tomcat-"* "${TEMP_DIR}/liferay/tomcat"
+
+	rm -fr "${TEMP_DIR}/liferay/tomcat/conf"
+	rm -fr "${TEMP_DIR}/liferay/tomcat/temp/safeToDelete.tmp"
+	rm -fr "${TEMP_DIR}/liferay/tomcat/webapps"
+
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/LICENSE" "${TEMP_DIR}/liferay/tomcat/LICENSE"
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/NOTICE" "${TEMP_DIR}/liferay/tomcat/NOTICE"
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/RELEASE-NOTES" "${TEMP_DIR}/liferay/tomcat/RELEASE-NOTES"
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/catalina-tasks.xml" "${TEMP_DIR}/liferay/tomcat/bin/catalina-tasks.xml"
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/setenv.bat" "${TEMP_DIR}/liferay/tomcat/bin/setenv.bat"
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/setenv.sh" "${TEMP_DIR}/liferay/tomcat/bin/setenv.sh"
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/conf" "${TEMP_DIR}/liferay/tomcat/"
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/webapps" "${TEMP_DIR}/liferay/tomcat/"
+	cp -r "${TEMP_DIR}/liferay/tomcat-temp/work/Catalina" "${TEMP_DIR}/liferay/tomcat/work/Catalina"
+
+	rm -fr "${TEMP_DIR}/liferay/tomcat-temp"
+
+	chmod +x "${TEMP_DIR}/liferay/tomcat/bin/"*
+}
+
+function print_help {
+	echo "Usage: ${0} --push"
+	echo ""
+	echo "The script reads the following environment variables:"
+	echo ""
+	echo "    LIFERAY_DOCKER_DEVELOPER_MODE (optional): If set to \"true\", all local images will be deleted before building a new one"
+	echo "    LIFERAY_DOCKER_ELASTICSEARCH_NETWORK_ADDRESSES (optional): Elasticsearch remote servers network addresses"
+	echo "    LIFERAY_DOCKER_FIX_PACK_URL (optional): URL to a fix pack"
+	echo "    LIFERAY_DOCKER_HUB_TOKEN (optional): Docker Hub token to log in automatically"
+	echo "    LIFERAY_DOCKER_HUB_USERNAME (optional): Docker Hub username to log in automatically"
+	echo "    LIFERAY_DOCKER_IMAGE_PLATFORMS (optional): Comma separated Docker image platforms to build when the \"push\" parameter is set"
+	echo "    LIFERAY_DOCKER_LICENSE_API_HEADER (required for DXP): API header used to generate the trial license"
+	echo "    LIFERAY_DOCKER_LICENSE_API_URL (required for DXP): API URL to generate the trial license"
+	echo "    LIFERAY_DOCKER_RELEASE_FILE_URL (required): URL to a Liferay bundle"
+	echo "    LIFERAY_DOCKER_REPOSITORY (optional): Docker repository"
+	echo "    LIFERAY_DOCKER_SLIM (optional): If set to \"true\", the image will be the slim variant"
+	echo ""
+	echo "Example: LIFERAY_DOCKER_RELEASE_FILE_URL=files.liferay.com/private/ee/portal/7.2.10/liferay-dxp-tomcat-7.2.10-ga1-20190531140450482.7z ${0} push"
+	echo ""
+	echo "Example: LIFERAY_DOCKER_ELASTICSEARCH_NETWORK_ADDRESSES='[\"http://es-node1:9200\",\"http://es-node2:9201\"]' LIFERAY_DOCKER_RELEASE_FILE_URL=files.liferay.com/private/ee/portal/7.2.10/liferay-dxp-tomcat-7.2.10-ga1-20190531140450482.7z LIFERAY_DOCKER_SLIM=true ${0} push"
+	echo ""
+
+	exit 1
 }
 
 function push_docker_image {

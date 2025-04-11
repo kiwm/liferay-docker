@@ -39,6 +39,8 @@ function clean_up_temp_directory {
 
 function configure_tomcat {
 	printf "\nCATALINA_OPTS=\"\${CATALINA_OPTS} \${LIFERAY_JVM_OPTS}\"" >> "${TEMP_DIR}/liferay/tomcat/bin/setenv.sh"
+
+	sed -i "/<web-app /a \\t<distributable />" "${TEMP_DIR}/liferay/tomcat/webapps/ROOT/WEB-INF/web.xml"
 }
 
 function date {
@@ -85,7 +87,10 @@ function download {
 	local file_name="${1}"
 	local file_url="${2}"
 
-	if [ -e "${file_name}" ] && [[ "${file_url}" != */nightly/* ]] && [[ "${file_url}" != */latest/* ]]
+	if [ -e "${file_name}" ] &&
+	   [[ "${file_url}" != */apache-tomcat/* ]] &&
+	   [[ "${file_url}" != */latest/* ]] &&
+	   [[ "${file_url}" != */nightly/* ]]
 	then
 		return
 	fi
@@ -96,9 +101,10 @@ function download {
 	fi
 
 	if [[ "${file_url}" != http://mirrors.*.liferay.com* ]] &&
+	   [[ "${file_url}" != https://dlcdn.apache.org/* ]] &&
 	   [[ "${file_url}" != https://release-1* ]] &&
-	   [[ "${file_url}" != https://releases-cdn.liferay.com* ]] &&
 	   [[ "${file_url}" != https://release.liferay.com* ]] &&
+	   [[ "${file_url}" != https://releases-cdn.liferay.com* ]] &&
 	   [[ "${file_url}" != https://storage.googleapis.com/* ]]
 	then
 		if [ ! -n "${LIFERAY_DOCKER_MIRROR}" ]
@@ -160,7 +166,7 @@ function get_tomcat_version {
 
 	if [ -z "${liferay_tomcat_version}" ]
 	then
-		echo "Unable to determine Tomcat version."
+		echo "Unable to get Tomcat version."
 
 		exit 1
 	fi
