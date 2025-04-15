@@ -9,6 +9,24 @@ function main {
 		rm -f /opt/liferay/deploy/trial-dxp-license-*.xml
 	fi
 
+	if [ -z "${LIFERAY_OPENSEARCH_2_ENABLED}" ]
+	then
+		LIFERAY_OPENSEARCH_2_ENABLED="false"
+
+		echo "[LIFERAY] LIFERAY_OPENSEARCH_2_ENABLED is not set. Defaulting to false."
+	fi
+
+	if [ "${LIFERAY_OPENSEARCH_2_ENABLED}" == "true" ]
+	then
+		rm -f "/opt/liferay/osgi/configs/com.liferay.portal.search.elasticsearch7.configuration.ElasticsearchConfiguration.config"
+	else
+		rm -f "/opt/liferay/osgi/configs/com.liferay.portal.bundle.blacklist.internal.configuration.BundleBlacklistConfiguration.config"
+		rm -f "/opt/liferay/osgi/configs/com.liferay.portal.search.opensearch2.configuration.OpenSearchConfiguration.config"
+		rm -f "/opt/liferay/osgi/configs/com.liferay.portal.search.opensearch2.configuration.OpenSearchConnectionConfiguration-REMOTE.config"
+		rm -f "${TEMP_DIR}/liferay/deploy/com.liferay.portal.search.opensearch2.api.jar"
+		rm -f "${TEMP_DIR}/liferay/deploy/com.liferay.portal.search.opensearch2.impl.jar"
+	fi
+
 	if [ ! -d "${LIFERAY_MOUNT_DIR}" ]
 	then
 		echo "[LIFERAY] Run this container with the option \"-v \$(pwd)/xyz123:/mnt/liferay\" to bridge \$(pwd)/xyz123 in the host operating system to ${LIFERAY_MOUNT_DIR} on the container."
