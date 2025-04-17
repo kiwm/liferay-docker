@@ -116,6 +116,10 @@ function main {
 
 		lc_time_run build_product
 
+		lc_time_run deploy_opensearch_2
+
+		lc_time_run upload_opensearch_2
+
 		lc_background_run build_sql
 		lc_background_run copy_copyright
 		lc_background_run deploy_elasticsearch_sidecar
