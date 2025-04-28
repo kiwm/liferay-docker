@@ -9,6 +9,24 @@ function main {
 		rm -f /opt/liferay/deploy/trial-dxp-license-*.xml
 	fi
 
+	if [ -n "${LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD_FILE}" ]
+	then
+		LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD=$(cat "${LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD_FILE}")
+
+		export LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD
+
+		unset LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD_FILE
+	fi
+
+	if [ -n "${LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME_FILE}" ]
+	then
+		LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME=$(cat "${LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME_FILE}")
+
+		export LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME
+
+		unset LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME_FILE
+	fi
+
 	if [ ! -d "${LIFERAY_MOUNT_DIR}" ]
 	then
 		echo "[LIFERAY] Run this container with the option \"-v \$(pwd)/xyz123:/mnt/liferay\" to bridge \$(pwd)/xyz123 in the host operating system to ${LIFERAY_MOUNT_DIR} on the container."
@@ -56,8 +74,71 @@ function main {
 		ln -s "${LIFERAY_MOUNT_DIR}"/deploy /opt/liferay/deploy
 
 		echo "[LIFERAY] The directory /mnt/liferay/deploy is ready. Copy files to \$(pwd)/xyz123/deploy on the host operating system to deploy modules to ${LIFERAY_PRODUCT_NAME} at runtime."
+		echo ""
 	else
 		echo "[LIFERAY] The directory /mnt/liferay/deploy does not exist. Create the directory \$(pwd)/xyz123/deploy on the host operating system to create the directory ${LIFERAY_MOUNT_DIR}/deploy on the container. Copy files to \$(pwd)/xyz123/deploy to deploy modules to ${LIFERAY_PRODUCT_NAME} at runtime."
+		echo ""
+	fi
+
+	if [ "${LIFERAY_SLIM}" == "true" ]
+	then
+		if (! echo "${LIFERAY_NETWORK_HOST_ADDRESSES}" | grep --quiet --perl-regexp "\[?(\"?(http|https):\/\/[.\w-]+:[\d]+\"?)+(,\s*\"(http|https):\/\/[.\w-]+:[\d]+\")*\]?")
+		then
+			echo "[LIFERAY] Run this container with the option \"--env LIFERAY_NETWORK_HOST_ADDRESSES=[\"http://node1:9201\",\"http://node2:9202\"]\" to enable the connection to remote search servers (Elasticsearch or OpenSearch)."
+			echo ""
+		fi
+
+		if [ -z "${LIFERAY_OPENSEARCH_ENABLED}" ]
+		then
+			LIFERAY_OPENSEARCH_ENABLED="false"
+
+			echo "[LIFERAY] Run this container with the option \"--env LIFERAY_OPENSEARCH_ENABLED=true\" to enable OpenSearch."
+			echo ""
+		fi
+
+		if [ "${LIFERAY_OPENSEARCH_ENABLED}" == "true" ]
+		then
+			if [ -z "${LIFERAY_OPENSEARCH_PASSWORD}" ]
+			then
+				echo "[LIFERAY] Run this container with the option \"--env LIFERAY_OPENSEARCH_PASSWORD=yourOpeanSearchPassword\" to enable the OpenSearch connection."
+				echo ""
+			fi
+
+			(
+				echo "networkHostAddresses=\"${LIFERAY_NETWORK_HOST_ADDRESSES}\""
+				echo "password=\"${LIFERAY_OPENSEARCH_PASSWORD}\""
+			) >> "/opt/liferay/osgi/configs/com.liferay.portal.search.opensearch2.configuration.OpenSearchConnectionConfiguration-REMOTE.config"
+
+			rm -f "/opt/liferay/osgi/configs/com.liferay.portal.search.elasticsearch7.configuration.ElasticsearchConfiguration.config"
+		else
+			(
+				echo "networkHostAddresses=\"${LIFERAY_NETWORK_HOST_ADDRESSES}\""
+			) >> "/opt/liferay/osgi/configs/com.liferay.portal.search.elasticsearch7.configuration.ElasticsearchConfiguration.config"
+
+			rm -f "/opt/liferay/deploy/com.liferay.portal.search.opensearch2.api.jar"
+			rm -f "/opt/liferay/deploy/com.liferay.portal.search.opensearch2.impl.jar"
+			rm -f "/opt/liferay/osgi/configs/com.liferay.portal.search.opensearch2.configuration.OpenSearchConfiguration.config"
+			rm -f "/opt/liferay/osgi/configs/com.liferay.portal.search.opensearch2.configuration.OpenSearchConnectionConfiguration-REMOTE.config"
+
+			local blacklist_config_path="/opt/liferay/osgi/configs/com.liferay.portal.bundle.blacklist.internal.configuration.BundleBlacklistConfiguration.config"
+
+			sed -i "s/com.liferay.portal.search.elasticsearch.cross.cluster.replication.impl//g" "${blacklist_config_path}"
+			sed -i "s/com.liferay.portal.search.elasticsearch.monitoring.web//g" "${blacklist_config_path}"
+			sed -i "s/com.liferay.portal.search.elasticsearch7.api//g" "${blacklist_config_path}"
+			sed -i "s/com.liferay.portal.search.elasticsearch7.impl//g" "${blacklist_config_path}"
+			sed -i "s/com.liferay.portal.search.learning.to.rank.api//g" "${blacklist_config_path}"
+			sed -i "s/com.liferay.portal.search.learning.to.rank.impl//g" "${blacklist_config_path}"
+
+			sed -i "s/\"\",\\\\//g" "${blacklist_config_path}"
+			sed -i "s/\"\"\\\\//g" "${blacklist_config_path}"
+
+			if (! grep -q "\"" "${blacklist_config_path}")
+			then
+				echo "[LIFERAY] Deleting com.liferay.portal.bundle.blacklist.internal.configuration.BundleBlacklistConfiguration.config."
+
+				rm -f "${blacklist_config_path}"
+			fi
+		fi
 	fi
 
 	export LIFERAY_PATCHING_DIR="${LIFERAY_MOUNT_DIR}"/patching
@@ -65,24 +146,6 @@ function main {
 	if [ -e /opt/liferay/patching-tool ]
 	then
 		patch_liferay.sh
-	fi
-
-	if [ -n "${LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD_FILE}" ]
-	then
-		LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD=$(cat "${LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD_FILE}")
-
-		export LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD
-
-		unset LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_PASSWORD_FILE
-	fi
-
-	if [ -n "${LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME_FILE}" ]
-	then
-		LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME=$(cat "${LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME_FILE}")
-
-		export LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME
-
-		unset LIFERAY_JDBC_PERIOD_DEFAULT_PERIOD_USERNAME_FILE
 	fi
 
 	if [ -n "${LIFERAY_TOMCAT_AJP_PORT}" ]

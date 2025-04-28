@@ -264,6 +264,11 @@ function upload_hotfix {
 	echo " - https://releases.liferay.com/dxp/hotfix/${_PRODUCT_VERSION}/${_HOTFIX_FILE_NAME}" >> ../output.md
 }
 
+function upload_opensearch {
+	gsutil mv -r "${_BUNDLES_DIR}/osgi/portal/com.liferay.portal.search.opensearch2.api.jar" "gs://liferay-releases/opensearch2/${LIFERAY_RELEASE_PRODUCT_NAME}/${_PRODUCT_VERSION}/com.liferay.portal.search.opensearch2.api.jar"
+	gsutil mv -r "${_BUNDLES_DIR}/osgi/portal/com.liferay.portal.search.opensearch2.impl.jar" "gs://liferay-releases/opensearch2/${LIFERAY_RELEASE_PRODUCT_NAME}/${_PRODUCT_VERSION}/com.liferay.portal.search.opensearch2.impl.jar"
+}
+
 function upload_release {
 	if [ "${LIFERAY_RELEASE_UPLOAD}" != "true" ]
 	then

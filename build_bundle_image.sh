@@ -1,8 +1,14 @@
 #!/bin/bash
 
 source ./_common.sh
+source ./_liferay_common.sh
 
 function build_docker_image {
+	if [ "${LIFERAY_DOCKER_SLIM}" == "true" ]
+	then
+		DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}-slim
+	fi
+
 	if [[ ${LIFERAY_DOCKER_RELEASE_FILE_URL%} == */snapshot-* ]]
 	then
 		DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}-snapshot
@@ -110,6 +116,7 @@ function build_docker_image {
 		--build-arg LABEL_LIFERAY_VCS_REF="${LIFERAY_VCS_REF}" \
 		--build-arg LABEL_NAME="${DOCKER_LABEL_NAME}" \
 		--build-arg LABEL_RELEASE_VERSION="${LIFERAY_DOCKER_RELEASE_VERSION}" \
+		--build-arg LABEL_SLIM="${LIFERAY_DOCKER_SLIM}" \
 		--build-arg LABEL_VCS_REF=$(git rev-parse HEAD) \
 		--build-arg LABEL_VCS_URL="https://github.com/liferay/liferay-docker" \
 		--build-arg LABEL_VERSION="${LABEL_VERSION}" \
@@ -136,25 +143,7 @@ function check_release {
 function check_usage {
 	if [ ! -n "${LIFERAY_DOCKER_RELEASE_FILE_URL}" ]
 	then
-		echo "Usage: ${0} --push"
-		echo ""
-		echo "The script reads the following environment variables:"
-		echo ""
-		echo "    LIFERAY_DOCKER_DEVELOPER_MODE (optional): If set to \"true\", all local images will be deleted before building a new one"
-		echo "    LIFERAY_DOCKER_FIX_PACK_URL (optional): URL to a fix pack"
-		echo "    LIFERAY_DOCKER_HUB_TOKEN (optional): Docker Hub token to log in automatically"
-		echo "    LIFERAY_DOCKER_HUB_USERNAME (optional): Docker Hub username to log in automatically"
-		echo "    LIFERAY_DOCKER_IMAGE_PLATFORMS (optional): Comma separated Docker image platforms to build when the \"push\" parameter is set"
-		echo "    LIFERAY_DOCKER_LICENSE_API_HEADER (required for DXP): API header used to generate the trial license"
-		echo "    LIFERAY_DOCKER_LICENSE_API_URL (required for DXP): API URL to generate the trial license"
-		echo "    LIFERAY_DOCKER_RELEASE_FILE_URL (required): URL to a Liferay bundle"
-		echo "    LIFERAY_DOCKER_REPOSITORY (optional): Docker repository"
-		echo ""
-		echo "Example: LIFERAY_DOCKER_RELEASE_FILE_URL=files.liferay.com/private/ee/portal/7.2.10/liferay-dxp-tomcat-7.2.10-ga1-20190531140450482.7z ${0} push"
-		echo ""
-		echo "Set \"push\" as a parameter to automatically push the image to Docker Hub."
-
-		exit 1
+		print_help
 	fi
 
 	check_utils 7z curl docker java unzip
@@ -225,6 +214,16 @@ function main {
 
 	prepare_tomcat
 
+	if [ "${LIFERAY_DOCKER_SLIM}" == "true" ]
+	then
+		prepare_slim_image
+
+		if [ "${?}" -ne 0 ]
+		then
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		fi
+	fi
+
 	download_trial_dxp_license
 
 	build_docker_image
@@ -236,6 +235,53 @@ function main {
 	push_docker_image "${1}"
 
 	clean_up_temp_directory
+}
+
+function prepare_slim_image {
+	rm -fr "${TEMP_DIR}/liferay/elasticsearch-sidecar"
+
+	(
+		echo "productionModeEnabled=B\"true\""
+	) > "${TEMP_DIR}/liferay/osgi/configs/com.liferay.portal.search.elasticsearch7.configuration.ElasticsearchConfiguration.config"
+
+	local product_name=$(echo "${LIFERAY_DOCKER_RELEASE_FILE_URL}" | cut -d '/' -f 2)
+	local product_version=$(echo "${LIFERAY_DOCKER_RELEASE_FILE_URL}" | cut -d '/' -f 3)
+
+	LIFERAY_COMMON_DOWNLOAD_SKIP_CACHE="true" lc_download "https://releases-gcp.liferay.com/opensearch2/${product_name}/${product_version}/com.liferay.portal.search.opensearch2.api.jar" "${TEMP_DIR}/liferay/deploy/com.liferay.portal.search.opensearch2.api.jar"
+
+	if [ "${?}" -ne 0 ]
+	then
+		lc_log ERROR "Unable to download com.liferay.portal.search.opensearch2.api.jar."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
+
+	LIFERAY_COMMON_DOWNLOAD_SKIP_CACHE="true" lc_download "https://releases-gcp.liferay.com/opensearch2/${product_name}/${product_version}/com.liferay.portal.search.opensearch2.impl.jar" "${TEMP_DIR}/liferay/deploy/com.liferay.portal.search.opensearch2.impl.jar"
+
+	if [ "${?}" -ne 0 ]
+	then
+		lc_log ERROR "Unable to download com.liferay.portal.search.opensearch2.impl.jar."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
+
+	(
+		echo "blacklistBundleSymbolicNames=[\\"
+		echo "\"com.liferay.portal.search.elasticsearch.cross.cluster.replication.impl\",\\"
+		echo "\"com.liferay.portal.search.elasticsearch.monitoring.web\",\\"
+		echo "\"com.liferay.portal.search.elasticsearch7.api\",\\"
+		echo "\"com.liferay.portal.search.elasticsearch7.impl\",\\"
+		echo "\"com.liferay.portal.search.learning.to.rank.api\",\\"
+		echo "\"com.liferay.portal.search.learning.to.rank.impl\"\\"
+		echo "]"
+	) > "${TEMP_DIR}/liferay/osgi/configs/com.liferay.portal.bundle.blacklist.internal.configuration.BundleBlacklistConfiguration.config"
+
+	(
+		echo "active=B\"true\""
+		echo "connectionId=\"REMOTE\""
+	) > "${TEMP_DIR}/liferay/osgi/configs/com.liferay.portal.search.opensearch2.configuration.OpenSearchConnectionConfiguration-REMOTE.config"
+
+	echo "remoteClusterConnectionId=\"REMOTE\"" > "${TEMP_DIR}/liferay/osgi/configs/com.liferay.portal.search.opensearch2.configuration.OpenSearchConfiguration.config"
 }
 
 function prepare_temp_directory {
@@ -292,6 +338,29 @@ function prepare_temp_directory {
 	chmod +x "${TEMP_DIR}/liferay/tomcat/bin/"*
 }
 
+function print_help {
+	echo "Usage: ${0} --push"
+	echo ""
+	echo "The script reads the following environment variables:"
+	echo ""
+	echo "    LIFERAY_DOCKER_DEVELOPER_MODE (optional): If set to \"true\", all local images will be deleted before building a new one"
+	echo "    LIFERAY_DOCKER_FIX_PACK_URL (optional): URL to a fix pack"
+	echo "    LIFERAY_DOCKER_HUB_TOKEN (optional): Docker Hub token to log in automatically"
+	echo "    LIFERAY_DOCKER_HUB_USERNAME (optional): Docker Hub username to log in automatically"
+	echo "    LIFERAY_DOCKER_IMAGE_PLATFORMS (optional): Comma separated Docker image platforms to build when the \"push\" parameter is set"
+	echo "    LIFERAY_DOCKER_LICENSE_API_HEADER (required for DXP): API header used to generate the trial license"
+	echo "    LIFERAY_DOCKER_LICENSE_API_URL (required for DXP): API URL to generate the trial license"
+	echo "    LIFERAY_DOCKER_RELEASE_FILE_URL (required): URL to a Liferay bundle"
+	echo "    LIFERAY_DOCKER_REPOSITORY (optional): Docker repository"
+	echo "    LIFERAY_DOCKER_SLIM (optional): If set to \"true\", the image will be smaller"
+	echo ""
+	echo "Example: LIFERAY_DOCKER_RELEASE_FILE_URL=files.liferay.com/private/ee/portal/7.2.10/liferay-dxp-tomcat-7.2.10-ga1-20190531140450482.7z ${0} push"
+	echo ""
+	echo "Set \"push\" as a parameter to automatically push the image to Docker Hub."
+
+	exit 1
+}
+
 function push_docker_image {
 	if [ "${1}" == "push" ]
 	then
@@ -306,6 +375,7 @@ function push_docker_image {
 			--build-arg LABEL_LIFERAY_VCS_REF="${LIFERAY_VCS_REF}" \
 			--build-arg LABEL_NAME="${DOCKER_LABEL_NAME}" \
 			--build-arg LABEL_RELEASE_VERSION="${LIFERAY_DOCKER_RELEASE_VERSION}" \
+			--build-arg LABEL_SLIM="${LIFERAY_DOCKER_SLIM}" \
 			--build-arg LABEL_VCS_REF=$(git rev-parse HEAD) \
 			--build-arg LABEL_VCS_URL="https://github.com/liferay/liferay-docker" \
 			--build-arg LABEL_VERSION="${LABEL_VERSION}" \

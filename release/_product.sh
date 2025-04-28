@@ -261,7 +261,7 @@ function deploy_elasticsearch_sidecar {
 		then
 			"${_PROJECTS_DIR}"/liferay-portal-ee/gradlew deploySidecar
 		else
-			echo "deploySidecar task does not exist in portal-search-elasticsearch7-impl."
+			echo "The Gradle task \"deploySidecar\" does not exist in portal-search-elasticsearch7-impl."
 
 			return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 		fi
@@ -269,6 +269,24 @@ function deploy_elasticsearch_sidecar {
 		echo "The directory portal-search-elasticsearch7-impl does not exist."
 
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+}
+
+function deploy_opensearch {
+	lc_cd "${_BUNDLES_DIR}/osgi/portal"
+
+	if [ -e "com.liferay.portal.search.opensearch2.api.jar" ] &&
+	   [ -e "com.liferay.portal.search.opensearch2.impl.jar" ]
+	then
+		lc_log INFO "The OpenSearch connector is already deployed."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	else
+		lc_log INFO "Deploying the OpenSearch connector."
+
+		lc_cd "${_PROJECTS_DIR}/liferay-portal-ee/modules/apps/portal-search-opensearch2"
+
+		"${_PROJECTS_DIR}/liferay-portal-ee/gradlew" clean deploy
 	fi
 }
 
