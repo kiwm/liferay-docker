@@ -1,0 +1,15 @@
+7.4.3.132:
+    7.4.3.132-ga132:
+        bundle_url: releases-cdn.liferay.com/portal/7.4.3.132-ga132/liferay-portal-tomcat-7.4.3.132-ga132-1739912568.7z
+7.4.3.142:
+    7.4.3.142-ga142:
+        bundle_url: releases-cdn.liferay.com/portal/7.4.3.142-ga142/liferay-portal-tomcat-7.4.3.142-ga142-1739912568.7z
+        latest: true
+7.4.13:
+    7.4.13-u124:
+    7.4.13.nightly:
+        bundle_url: releases-cdn.liferay.com/dxp/nightly/liferay-dxp-tomcat-7.4.13.nightly.7z
+quarterly:
+    2024.q2.0:
+    2025.q1.11-lts:
+        latest: true
