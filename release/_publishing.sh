@@ -317,11 +317,19 @@ function upload_release {
 }
 
 function upload_to_docker_hub {
+	prepare_branch_to_commit_from_master "${_BASE_DIR}" "liferay-docker" "update-bundles-yml-branch"
+
+	if [ "${?}" -ne 0 ]
+	then
+		lc_log ERROR "Unable to prepare the update bundles.yml branch."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
 	_update_bundles_yml
 
 	lc_cd "${_BASE_DIR}"
 
-	LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}" ./build_all_images.sh --push
+	LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}" ./build_all_images.sh
 }
 
 function _update_bundles_yml {
@@ -375,11 +383,22 @@ function _update_bundles_yml {
 
 	if [ -z "${LIFERAY_RELEASE_TEST_MODE}" ]
 	then
-		git add "${_BASE_DIR}/bundles.yml"
+		commit_to_branch_and_send_pull_request \
+			"${_BASE_DIR}/bundles.yml" \
+			"Add ${_PRODUCT_VERSION} to bundles.yml." \
+			"update-bundles-yml-branch" \
+			"master" \
+			"lucasmiranda0/liferay-docker" \
+			"Add ${_PRODUCT_VERSION} to bundles.yml."
 
-		git commit -m "Add ${_PRODUCT_VERSION} to bundles.yml."
+		if [ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
+		then
+			lc_log ERROR "Unable to send to brianchandotcom/liferay-docker."
 
-		git push upstream master
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		else
+			lc_log INFO "The bundles.yml was updated successfully."
+		fi
 	fi
 }
 

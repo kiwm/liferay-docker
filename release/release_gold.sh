@@ -48,6 +48,20 @@ function check_usage {
 
 	_BASE_DIR="$(dirname "${_RELEASE_ROOT_DIR}")"
 
+	echo "base dir: ${_BASE_DIR}"
+	ls
+	git status
+
+	cd "${_BASE_DIR}"
+
+	git status
+	git remote -v
+
+	git checkout /opt/java/jenkins/workspace/release-gold
+	git branch
+
+	git branch -D test
+
 	_PROJECTS_DIR="/opt/dev/projects/github"
 
 	if [ ! -d "${_PROJECTS_DIR}" ]
@@ -66,28 +80,6 @@ function check_usage {
 	LIFERAY_COMMON_LOG_DIR="${_PROMOTION_DIR%/*}"
 }
 
-function commit_to_branch_and_send_pull_request {
-	git add "${1}"
-
-	git commit --message "${2}"
-
-	local repository_name=$(echo "${5}" | cut -d '/' -f 2)
-
-	git push --force "git@github.com:liferay-release/${repository_name}.git" "${3}"
-
-	gh pr create \
-		--base "${4}" \
-		--body "Created by liferay-docker/release/release_gold.sh." \
-		--head "liferay-release:${3}" \
-		--repo "${5}" \
-		--title "${6}"
-
-	if [ "${?}" -ne 0 ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-}
-
 function get_tag_name {
 	if [ "${LIFERAY_RELEASE_PRODUCT_NAME}" == "dxp" ]
 	then
@@ -103,51 +95,10 @@ function main {
 	then
 		return
 	fi
-
+	_PRODUCT_VERSION=2025.q1.13-lts
 	check_usage
 
-	check_supported_versions
-
-	init_gcs
-
-	lc_time_run promote_packages
-
-	lc_time_run tag_release
-
-	promote_boms xanadu
-
-	if (! is_quarterly_release "${_PRODUCT_VERSION}") &&
-	   [[ ! $(echo "${_PRODUCT_VERSION}" | grep "7.4") ]]
-	then
-		lc_log INFO "Do not update product_info.json for quarterly and 7.4 releases."
-
-		lc_time_run generate_product_info_json
-
-		lc_time_run upload_product_info_json
-	fi
-
-	lc_time_run generate_releases_json
-
-	lc_time_run test_boms
-
-	lc_time_run add_patcher_project_version
-
-	if [ -d "${_RELEASE_ROOT_DIR}/dev/projects" ]
-	then
-		lc_background_run clone_repository liferay-portal-ee
-
-		lc_wait
-	fi
-
-	lc_time_run clean_portal_repository
-
-	#lc_time_run prepare_next_release_branch
-
-	#lc_time_run update_release_info_date
-
-	lc_time_run reference_new_releases
-
-	#lc_time_run upload_to_docker_hub
+	lc_time_run upload_to_docker_hub
 }
 
 function prepare_branch_to_commit {
@@ -164,25 +115,6 @@ function prepare_branch_to_commit {
 	git checkout "${1}" &> /dev/null
 
 	if [ "$(git rev-parse --abbrev-ref HEAD 2> /dev/null)" != "${1}" ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-}
-
-function prepare_branch_to_commit_from_master {
-	lc_cd "${1}"
-
-	git checkout master
-
-	git fetch git@github.com:liferay/liferay-jenkins-ee.git master
-
-	git reset --hard FETCH_HEAD
-
-	git checkout -b "${2}"
-
-	git push git@github.com:liferay-release/liferay-jenkins-ee.git "${2}" --force
-
-	if [ "$(git rev-parse --abbrev-ref HEAD)" != "${2}" ]
 	then
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
@@ -325,7 +257,7 @@ function reference_new_releases {
 			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
 
-		prepare_branch_to_commit_from_master "${_PROJECTS_DIR}/liferay-jenkins-ee/commands" "${issue_key}"
+		prepare_branch_to_commit_from_master "${_PROJECTS_DIR}/liferay-jenkins-ee/commands" "liferay-jenkins-ee" "${issue_key}"
 	fi
 
 	if [ "${?}" -ne 0 ]
