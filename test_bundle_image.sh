@@ -141,8 +141,7 @@ function start_container {
 
 	if [ -n "${LIFERAY_DOCKER_NETWORK_NAME}" ]
 	then
-		if [[ "${LIFERAY_DOCKER_NETWORK_NAME}" == release-1* ]] ||
-		   [[ "${LIFERAY_DOCKER_NETWORK_NAME}" == release-slave* ]]
+		if [[ "${LIFERAY_DOCKER_NETWORK_NAME}" == release-slave* ]]
 		then
 			CONTAINER_HOSTNAME=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')
 			CONTAINER_HTTP_PORT=8081
@@ -153,14 +152,22 @@ function start_container {
 
 			parameters="--env=LIFERAY_DOCKER_TEST_MODE=true --hostname=${CONTAINER_HOSTNAME} --name=${CONTAINER_HOSTNAME} --network=${LIFERAY_DOCKER_NETWORK_NAME} --publish=8081:8080 --volume=${test_dir}/mnt:/mnt:rw --volume=/mnt/pd/liferay-docker/portal-ext.properties:/opt/liferay/portal-ext.properties"
 		else
-			CONTAINER_HOSTNAME=portal-container
-			CONTAINER_HTTP_PORT=8080
+			CONTAINER_HOSTNAME="portal-container"
+			CONTAINER_HTTP_PORT=8082
 
-			test_dir="/data/${LIFERAY_DOCKER_NETWORK_NAME}/liferay/liferay-docker/${TEST_DIR}"
+			#echo -e "web.server.host=${CONTAINER_HOSTNAME}\nweb.server.http.port=8082" > portal-ext.properties
 
-			parameters="--env=LIFERAY_DOCKER_TEST_MODE=true --hostname=${CONTAINER_HOSTNAME} --name=${CONTAINER_HOSTNAME} --network=${LIFERAY_DOCKER_NETWORK_NAME} --publish=8080 --volume=${test_dir}/mnt:/mnt:rw"
+			#cat portal-ext.properties
+			#--volume=/opt/java/jenkins/workspace/release-gold/portal-ext.properties:/opt/liferay/portal-ext.properties
+
+			test_dir="/opt/java/jenkins/workspace/release-gold/${TEST_DIR}"
+
+			parameters="--env=LIFERAY_DOCKER_TEST_MODE=true --hostname=${CONTAINER_HOSTNAME} --name=${CONTAINER_HOSTNAME} --network=${LIFERAY_DOCKER_NETWORK_NAME} --publish=8082:8080 --volume=${test_dir}/mnt:/mnt:rw"
 		fi
 	fi
+
+	docker network inspect bridge
+	echo "parameters: ${parameters}"
 
 	CONTAINER_ID=$(docker run -d ${parameters} "${LIFERAY_DOCKER_IMAGE_ID}")
 
