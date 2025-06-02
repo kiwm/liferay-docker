@@ -201,7 +201,10 @@ function update_release_tool_repository {
 
 	# git pull upstream master
 
-	git remote add tinatian git@github.com:tinatian/liferay-release-tool-ee.git
+	if ! git remote | grep -q "tinatian"
+	then
+		git remote add tinatian git@github.com:tinatian/liferay-release-tool-ee.git
+	fi
 
 	git fetch --force --prune tinatian
 
