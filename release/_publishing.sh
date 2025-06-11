@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source ../_release_common.sh
+source ../_ssh_common.sh
 
 function add_fixed_issues_to_patcher_project_version {
 	lc_download "https://releases.liferay.com/dxp/${_PRODUCT_VERSION}/release-notes.txt" release-notes.txt
@@ -147,17 +148,6 @@ function get_root_patcher_project_version_name {
 	fi
 }
 
-function has_ssh_connection {
-	ssh "root@${1}" "exit" &> /dev/null
-
-	if [ $? -eq 0 ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_OK}"
-	fi
-
-	return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-}
-
 function init_gcs {
 	if [ ! -n "${LIFERAY_RELEASE_GCS_TOKEN}" ]
 	then
@@ -243,30 +233,45 @@ function upload_hotfix {
 
 		if (ssh root@lrdcom-vm-1 ls "/www/releases.liferay.com/dxp/hotfix/${_PRODUCT_VERSION}/" | grep -q "${_HOTFIX_FILE_NAME}")
 		then
-			lc_log INFO "Skipping the upload of ${_HOTFIX_FILE_NAME} because it already exists."
-
-			echo "# Uploaded" > ../output.md
-			echo " - https://releases.liferay.com/dxp/hotfix/${_PRODUCT_VERSION}/${_HOTFIX_FILE_NAME}" >> ../output.md
+			lc_log INFO "Skipping the upload of ${_HOTFIX_FILE_NAME} to lrdcom-vm-1 because it already exists."
 
 			return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 		fi
 
 		scp "${_BUILD_DIR}/${_HOTFIX_FILE_NAME}" root@lrdcom-vm-1:"/www/releases.liferay.com/dxp/hotfix/${_PRODUCT_VERSION}/"
-	else
-		lc_log INFO "Skipping lrdcom-vm-1."
+
+		if [ "${?}" -ne 0 ]
+		then
+			lc_log ERROR "Unable to upload ${_HOTFIX_FILE_NAME} to lrdcom-vm-1."
+
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		fi
+
+		lc_log INFO "${_HOTFIX_FILE_NAME} successfully uploaded to lrdcom-vm-1."
 	fi
 
-	if (gsutil ls "gs://liferay-releases-hotfix/${_PRODUCT_VERSION}" | grep "${_HOTFIX_FILE_NAME}")
-	then
-		lc_log ERROR "Skipping the upload of ${_HOTFIX_FILE_NAME} to GCP because it already exists."
+	for gcp_bucket in \
+		files_liferay_com/private/ee/portal/hotfix \
+		liferay-releases-hotfix
+	do
+		if (gsutil ls "gs://${gcp_bucket}/${_PRODUCT_VERSION}" | grep "${_HOTFIX_FILE_NAME}")
+		then
+			lc_log INFO "Skipping the upload of ${_HOTFIX_FILE_NAME} to GCP bucket ${gcp_bucket} because it already exists."
 
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
+			return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+		fi
 
-	gsutil cp "${_BUILD_DIR}/${_HOTFIX_FILE_NAME}" "gs://liferay-releases-hotfix/${_PRODUCT_VERSION}"
+		gsutil cp "${_BUILD_DIR}/${_HOTFIX_FILE_NAME}" "gs://${gcp_bucket}/${_PRODUCT_VERSION}/"
 
-	echo "# Uploaded" > ../output.md
-	echo " - https://releases.liferay.com/dxp/hotfix/${_PRODUCT_VERSION}/${_HOTFIX_FILE_NAME}" >> ../output.md
+		if [ "${?}" -ne 0 ]
+		then
+			lc_log ERROR "Unable to upload ${_HOTFIX_FILE_NAME} to GCP bucket ${gcp_bucket}."
+
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		fi
+
+		lc_log INFO "${_HOTFIX_FILE_NAME} successfully uploaded to GCP bucket ${gcp_bucket}."
+	done
 }
 
 function upload_opensearch {
@@ -283,8 +288,6 @@ function upload_release {
 	fi
 
 	lc_cd "${_BUILD_DIR}"/release
-
-	echo "# Uploaded" > ../output.md
 
 	local ssh_connection="false"
 
