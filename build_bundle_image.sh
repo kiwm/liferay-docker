@@ -332,47 +332,52 @@ function prepare_temp_directory {
 
 	if [ "${tomcat_version}" != "${latest_tomcat_version}" ]
 	then
-		tomcat_version="${latest_tomcat_version}"
-
-		local tomcat_download_dir="downloads/tomcat/apache-tomcat-${tomcat_version}"
-
-		local tomcat_major_version=$(echo "${tomcat_version}" | cut -d '.' -f 1)
-
-		local tomcat_url="https://dlcdn.apache.org/tomcat/tomcat-${tomcat_major_version}/v${tomcat_version}/bin/apache-tomcat-${tomcat_version}.zip"
-
-		download "${tomcat_download_dir}/apache-tomcat.zip" "${tomcat_url}"
-
+		local latest_tomcat_dir_name="tomcat"
 		local tomcat_dir_name="tomcat"
 
 		if [ ! -e "${TEMP_DIR}/liferay/tomcat" ]
 		then
+			latest_tomcat_dir_name="tomcat-${latest_tomcat_version}"
 			tomcat_dir_name="tomcat-${tomcat_version}"
 		fi
 
 		mv "${TEMP_DIR}/liferay/${tomcat_dir_name}" "${TEMP_DIR}/liferay/tomcat-temp"
 
-		unzip -d "${TEMP_DIR}/liferay" -q "${tomcat_download_dir}/apache-tomcat.zip" || exit 3
+		local latest_tomcat_download_dir="downloads/tomcat/apache-tomcat-${latest_tomcat_version}"
 
-		mv "${TEMP_DIR}/liferay/apache-tomcat-"* "${TEMP_DIR}/liferay/${tomcat_dir_name}"
+		local latest_tomcat_major_version=$(echo "${latest_tomcat_version}" | cut -d '.' -f 1)
 
-		rm -fr "${TEMP_DIR}/liferay/${tomcat_dir_name}/conf"
-		rm -fr "${TEMP_DIR}/liferay/${tomcat_dir_name}/temp/safeToDelete.tmp"
-		rm -fr "${TEMP_DIR}/liferay/${tomcat_dir_name}/webapps"
+		local latest_tomcat_url="https://dlcdn.apache.org/tomcat/tomcat-${latest_tomcat_major_version}/v${latest_tomcat_version}/bin/apache-tomcat-${latest_tomcat_version}.zip"
 
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/LICENSE" "${TEMP_DIR}/liferay/${tomcat_dir_name}/LICENSE"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/NOTICE" "${TEMP_DIR}/liferay/${tomcat_dir_name}/NOTICE"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/RELEASE-NOTES" "${TEMP_DIR}/liferay/${tomcat_dir_name}/RELEASE-NOTES"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/catalina-tasks.xml" "${TEMP_DIR}/liferay/${tomcat_dir_name}/bin/catalina-tasks.xml"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/setenv.bat" "${TEMP_DIR}/liferay/${tomcat_dir_name}/bin/setenv.bat"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/setenv.sh" "${TEMP_DIR}/liferay/${tomcat_dir_name}/bin/setenv.sh"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/conf" "${TEMP_DIR}/liferay/${tomcat_dir_name}/"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/lib/ext" "${TEMP_DIR}/liferay/${tomcat_dir_name}/lib/ext"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/webapps" "${TEMP_DIR}/liferay/${tomcat_dir_name}/"
-		cp -r "${TEMP_DIR}/liferay/tomcat-temp/work/Catalina" "${TEMP_DIR}/liferay/${tomcat_dir_name}/work/Catalina"
+		download "${latest_tomcat_download_dir}/apache-tomcat.zip" "${latest_tomcat_url}"
+
+		unzip -d "${TEMP_DIR}/liferay" -q "${latest_tomcat_download_dir}/apache-tomcat.zip" || exit 3
+
+		mv "${TEMP_DIR}/liferay/apache-tomcat-"* "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}"
+
+		rm -fr "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/conf"
+		rm -fr "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/temp/safeToDelete.tmp"
+		rm -fr "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/webapps"
+
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/LICENSE" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/LICENSE"
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/NOTICE" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/NOTICE"
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/RELEASE-NOTES" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/RELEASE-NOTES"
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/catalina-tasks.xml" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/bin/catalina-tasks.xml"
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/setenv.bat" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/bin/setenv.bat"
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/bin/setenv.sh" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/bin/setenv.sh"
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/conf" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/"
+
+		if is_7_3_release
+		then
+			cp -r "${TEMP_DIR}/liferay/tomcat-temp/lib/ext" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/lib/ext"
+		fi
+
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/webapps" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/"
+		cp -r "${TEMP_DIR}/liferay/tomcat-temp/work/Catalina" "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/work/Catalina"
 
 		rm -fr "${TEMP_DIR}/liferay/tomcat-temp"
 
-		chmod +x "${TEMP_DIR}/liferay/${tomcat_dir_name}/bin/"*
+		chmod +x "${TEMP_DIR}/liferay/${latest_tomcat_dir_name}/bin/"*
 	fi
 }
 

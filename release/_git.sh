@@ -57,6 +57,39 @@ function clone_repository {
 	git remote --verbose
 }
 
+function commit_to_branch_and_send_pull_request {
+	git add "${1}"
+
+	git commit --message "${2}"
+
+	local repository_name=$(echo "${4}" | cut -d '/' -f 2)
+
+	git push --force "git@github.com:liferay-release/${repository_name}.git" "${_TEMP_BRANCH}"
+
+	gh pr create \
+		--base "${3}" \
+		--body "Created by Release Team." \
+		--head "liferay-release:${_TEMP_BRANCH}" \
+		--repo "${4}" \
+		--title "${5}"
+
+	if [ "${?}" -ne 0 ]
+	then
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
+}
+
+function delete_temp_branch {
+	git checkout master
+
+	git branch --delete --force "${_TEMP_BRANCH}"
+
+	if (git ls-remote --heads "git@github.com:liferay-release/${1}.git" "${_TEMP_BRANCH}" | grep -q "${_TEMP_BRANCH}")
+	then
+		git push "git@github.com:liferay-release/${1}.git" --delete --force "${_TEMP_BRANCH}"
+	fi
+}
+
 function generate_release_notes {
 	if is_portal_release
 	then
@@ -86,6 +119,34 @@ function generate_release_notes {
 		grep -v POSHI | \
 		grep -v RELEASE | \
 		paste -sd, > "${_BUILD_DIR}/release/release-notes.txt"
+}
+
+function prepare_branch_to_commit {
+	lc_cd "${1}"
+
+	git restore .
+
+	git checkout master
+
+	local base_branch="master"
+
+	if [ -n "${3}" ]
+	then
+		base_branch="${3}"
+	fi
+
+	local repository_name="${2}"
+
+	_TEMP_BRANCH="temp-branch-$(date "+%Y%m%d%H%M%S")"
+
+	git fetch --no-tags "git@github.com:liferay/${repository_name}.git" "${base_branch}:${_TEMP_BRANCH}"
+
+	git checkout "${_TEMP_BRANCH}"
+
+	if [ "$(git rev-parse --abbrev-ref HEAD)" != "${_TEMP_BRANCH}" ]
+	then
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
 }
 
 function set_git_sha {

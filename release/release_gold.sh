@@ -66,28 +66,6 @@ function check_usage {
 	LIFERAY_COMMON_LOG_DIR="${_PROMOTION_DIR%/*}"
 }
 
-function commit_to_branch_and_send_pull_request {
-	git add "${1}"
-
-	git commit --message "${2}"
-
-	local repository_name=$(echo "${5}" | cut -d '/' -f 2)
-
-	git push --force "git@github.com:liferay-release/${repository_name}.git" "${3}"
-
-	gh pr create \
-		--base "${4}" \
-		--body "Created by liferay-docker/release/release_gold.sh." \
-		--head "liferay-release:${3}" \
-		--repo "${5}" \
-		--title "${6}"
-
-	if [ "${?}" -ne 0 ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-}
-
 function get_tag_name {
 	if (is_ga_release || is_u_release)
 	then
@@ -149,44 +127,6 @@ function main {
 	#lc_time_run upload_to_docker_hub
 }
 
-function prepare_branch_to_commit {
-	lc_cd "${_PROJECTS_DIR}/liferay-portal-ee"
-
-	git restore .
-
-	git checkout master &> /dev/null
-
-	git branch --delete --force "${1}" &> /dev/null
-
-	git fetch --no-tags git@github.com:liferay/liferay-portal-ee.git "${1}":"${1}" &> /dev/null
-
-	git checkout "${1}" &> /dev/null
-
-	if [ "$(git rev-parse --abbrev-ref HEAD 2> /dev/null)" != "${1}" ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-}
-
-function prepare_branch_to_commit_from_master {
-	lc_cd "${1}"
-
-	git checkout master
-
-	git fetch git@github.com:liferay/liferay-jenkins-ee.git master
-
-	git reset --hard FETCH_HEAD
-
-	git checkout -b "${2}"
-
-	git push git@github.com:liferay-release/liferay-jenkins-ee.git "${2}" --force
-
-	if [ "$(git rev-parse --abbrev-ref HEAD)" != "${2}" ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-}
-
 function prepare_next_release_branch {
 	if [ ! $(echo "${LIFERAY_RELEASE_PREPARE_NEXT_RELEASE_BRANCH}" | grep -i "true") ] ||
 	   ! is_quarterly_release
@@ -224,7 +164,7 @@ function prepare_next_release_branch {
 
 	local quarterly_release_branch="release-${product_group_version}"
 
-	prepare_branch_to_commit "${quarterly_release_branch}"
+	prepare_branch_to_commit "${_PROJECTS_DIR}/liferay-portal-ee" "liferay-portal-ee" "${quarterly_release_branch}"
 
 	if [ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
 	then
@@ -258,18 +198,21 @@ function prepare_next_release_branch {
 				"${_PROJECTS_DIR}/liferay-portal-ee/release.properties" \
 				"Prepare ${product_group_version}.${next_release_patch_version}" \
 				"${quarterly_release_branch}" \
-				"${quarterly_release_branch}" \
 				"brianchandotcom/liferay-portal-ee" \
 				"Prep next"
 
-			if [ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
+			local exit_code="${?}"
+
+			if [ "${exit_code}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
 			then
 				lc_log ERROR "Unable to commit to the release branch."
-
-				return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 			else
 				lc_log INFO "The next release branch was prepared successfully."
 			fi
+
+			delete_temp_branch "liferay-portal-ee"
+
+			return "${exit_code}"
 		fi
 	fi
 }
@@ -324,7 +267,7 @@ function reference_new_releases {
 			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
 
-		prepare_branch_to_commit_from_master "${_PROJECTS_DIR}/liferay-jenkins-ee/commands" "${issue_key}"
+		prepare_branch_to_commit "${_PROJECTS_DIR}/liferay-jenkins-ee/commands" "liferay-jenkins-ee"
 	fi
 
 	if [ "${?}" -ne 0 ]
@@ -441,27 +384,30 @@ function reference_new_releases {
 		commit_to_branch_and_send_pull_request \
 			"${_PROJECTS_DIR}/liferay-jenkins-ee/commands/build.properties" \
 			"${issue_key} Add release references for ${_PRODUCT_VERSION}" \
-			"${issue_key}" \
 			"master" \
 			"pyoo47/liferay-jenkins-ee" \
 			"${issue_key} Add release references for ${_PRODUCT_VERSION}."
 
-		if [ "${?}" -ne 0 ]
+		local exit_code="${?}"
+
+		if [ "${exit_code}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
 		then
 			lc_log ERROR "Unable to send pull request with references to the next release."
-
-			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		else
 			lc_log INFO "Pull request with references to the next release was sent successfully."
+
+			local pull_request_url="$(\
+				gh pr view liferay-release:${issue_key} \
+					--jq ".url" \
+					--json "url" \
+					--repo "pyoo47/liferay-jenkins-ee")"
+
+			add_jira_issue_comment "Related pull request: ${pull_request_url}" "${issue_key}"
 		fi
 
-		local pull_request_url="$(\
-			gh pr view liferay-release:${issue_key} \
-				--jq ".url" \
-				--json "url" \
-				--repo "pyoo47/liferay-jenkins-ee")"
+		delete_temp_branch "liferay-jenkins-ee"
 
-		add_jira_issue_comment "Related pull request: ${pull_request_url}" "${issue_key}"
+		return "${exit_code}"
 	fi
 }
 
@@ -630,7 +576,7 @@ function update_release_info_date {
 
 	local quarterly_release_branch="release-${product_group_version}"
 
-	prepare_branch_to_commit "${quarterly_release_branch}"
+	prepare_branch_to_commit "${_PROJECTS_DIR}/liferay-portal-ee" "liferay-portal-ee" "${quarterly_release_branch}"
 
 	if [ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
 	then
@@ -649,18 +595,21 @@ function update_release_info_date {
 			"${_PROJECTS_DIR}/liferay-portal-ee/release.properties" \
 			"Update the release info date for ${_PRODUCT_VERSION}" \
 			"${quarterly_release_branch}" \
-			"${quarterly_release_branch}" \
 			"brianchandotcom/liferay-portal-ee" \
 			"Prep next"
 
-		if [ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
+		local exit_code="${?}"
+
+		if [ "${exit_code}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]
 		then
 			lc_log ERROR "Unable to commit to the release branch."
-
-			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		else
 			lc_log INFO "The release date was updated successfully."
 		fi
+
+		delete_temp_branch "liferay-portal-ee"
+
+		return "${exit_code}"
 	fi
 }
 
