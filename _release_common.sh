@@ -36,6 +36,10 @@ function get_release_version {
 	fi
 }
 
+function get_release_version_minor {
+	echo "$(_get_product_version "${1}")" | cut -d '.' -f 2
+}
+
 function get_release_version_trivial {
 	local product_version="$(_get_product_version "${1}")"
 
@@ -127,6 +131,14 @@ function is_dxp_release {
 }
 
 function is_early_product_version_than {
+	_compare_product_versions "${1}" "early_than"
+}
+
+function is_later_product_version_than {
+	_compare_product_versions "${1}" "later_than"
+}
+
+function _compare_product_versions {
 	local product_version_1=""
 
 	if [ -n "${ACTUAL_PRODUCT_VERSION}" ]
@@ -136,43 +148,22 @@ function is_early_product_version_than {
 		product_version_1=$(_get_product_version | sed -e "s/-lts//")
 	fi
 
-	local product_version_1_quarter
-	local product_version_1_suffix
-
-	IFS='.' read -r product_version_1_year product_version_1_quarter product_version_1_suffix <<< "${product_version_1}"
-
-	product_version_1_quarter=$(echo "${product_version_1_quarter}" | sed -e "s/q//")
-
 	local product_version_2=$(echo "${1}" | sed -e "s/-lts//")
-	local product_version_2_quarter
-	local product_version_2_suffix
 
-	IFS='.' read -r product_version_2_year product_version_2_quarter product_version_2_suffix <<< "${product_version_2}"
-
-	product_version_2_quarter=$(echo "${product_version_2_quarter}" | sed -e "s/q//")
-
-	if [ "${product_version_1_year}" -lt "${product_version_2_year}" ]
+	if is_u_release "${product_version_1}" &&
+	   is_u_release "${product_version_2}"
 	then
-		return 0
-	elif [ "${product_version_1_year}" -gt "${product_version_2_year}" ]
-	then
-		return 1
+		_compare_product_version_for_u_releases "${2}" "${product_version_1}" "${product_version_2}"
+
+		return "${?}"
 	fi
 
-	if [ "${product_version_1_quarter}" -lt "${product_version_2_quarter}" ]
+	if is_quarterly_release "${product_version_1}" &&
+	   is_quarterly_release "${product_version_2}"
 	then
-		return 0
-	elif [ "${product_version_1_quarter}" -gt "${product_version_2_quarter}" ]
-	then
-		return 1
-	fi
+		_compare_product_version_for_quarterly_releases "${2}" "${product_version_1}" "${product_version_2}"
 
-	if [ "${product_version_1_suffix}" -lt "${product_version_2_suffix}" ]
-	then
-		return 0
-	elif [ "${product_version_1_suffix}" -gt "${product_version_2_suffix}" ]
-	then
-		return 1
+		return "${?}"
 	fi
 
 	return 1
@@ -243,4 +234,81 @@ function _get_product_version {
 	else
 		echo "${1}"
 	fi
+}
+
+function _compare_product_version_for_quarterly_releases {
+	local product_version_1_quarter
+	local product_version_1_suffix
+
+	IFS='.' read -r product_version_1_year product_version_1_quarter product_version_1_suffix <<< "${2}"
+
+	product_version_1_quarter=$(echo "${product_version_1_quarter}" | sed -e "s/q//")
+
+	local product_version_2_quarter
+	local product_version_2_suffix
+
+	IFS='.' read -r product_version_2_year product_version_2_quarter product_version_2_suffix <<< "${3}"
+
+	product_version_2_quarter=$(echo "${product_version_2_quarter}" | sed -e "s/q//")
+
+	local comparetor_1="-lt"
+	local comparetor_2="-gt"
+
+	if [ "${1}" == "later_than" ]
+	then
+		comparetor_1="-gt"
+		comparetor_2="-lt"
+	fi
+
+	if eval "[ ${product_version_1_year} ${comparetor_1} ${product_version_2_year} ]"
+	then
+		return 0
+	elif eval "[ ${product_version_1_year} ${comparetor_2} ${product_version_2_year} ]"
+	then
+		return 1
+	fi
+
+	if eval "[ ${product_version_1_quarter} ${comparetor_1} ${product_version_2_quarter} ]"
+	then
+		return 0
+	elif eval "[ ${product_version_1_quarter} ${comparetor_2} ${product_version_2_quarter} ]"
+	then
+		return 1
+	fi
+
+	if eval "[ ${product_version_1_suffix} ${comparetor_1} ${product_version_2_suffix} ]"
+	then
+		return 0
+	elif eval "[ ${product_version_1_suffix} ${comparetor_2} ${product_version_2_suffix} ]"
+	then
+		return 1
+	fi
+
+	return 1
+}
+
+function _compare_product_version_for_u_releases {
+	local comparetor_1="-lt"
+	local comparetor_2="-gt"
+
+	if [ "${1}" == "later_than" ]
+	then
+		comparetor_1="-gt"
+		comparetor_2="-lt"
+	fi
+
+	if eval "[ $(get_release_version_minor "${2}") ${comparetor_1} $(get_release_version_minor "${3}") ]"
+	then
+		return 0
+	elif eval "[ $(get_release_version_minor "${2}") ${comparetor_2} $(get_release_version_minor "${3}") ]"
+	then
+		return 1
+	fi
+
+	if eval "[ $(get_release_version_trivial "${2}") ${comparetor_1} $(get_release_version_trivial "${3}") ]"
+	then
+		return 0
+	fi
+
+	return 1
 }
