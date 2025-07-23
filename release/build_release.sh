@@ -157,6 +157,8 @@ function main {
 
 		lc_time_run upload_release
 
+		lc_time_run upload_to_docker_hub release-candidate
+
 		lc_time_run trigger_ci_test_suite
 	else
 		lc_time_run prepare_release_dir

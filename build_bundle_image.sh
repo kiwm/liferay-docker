@@ -139,6 +139,11 @@ function check_release {
 
 		exit 1
 	fi
+
+	if is_release_candidate
+	then
+		DOCKER_IMAGE_NAME="release-candidates"
+	fi
 }
 
 function check_usage {
@@ -174,7 +179,7 @@ function download_file_from_github {
 }
 
 function download_trial_dxp_license {
-	if [[ ${DOCKER_IMAGE_NAME} == "dxp" ]]
+	if [[ ${DOCKER_LABEL_NAME} == "Liferay DXP" ]]
 	then
 		rm --force --recursive "${TEMP_DIR}/liferay/data/license"
 
