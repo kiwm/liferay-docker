@@ -111,6 +111,8 @@ function main {
 
 	lc_time_run add_patcher_project_version
 
+	lc_time_run upload_to_docker_hub
+
 	#if [ -d "${_RELEASE_ROOT_DIR}/dev/projects" ]
 	#then
 	#	lc_background_run clone_repository liferay-portal-ee
@@ -123,8 +125,6 @@ function main {
 	#lc_time_run prepare_next_release_branch
 
 	#lc_time_run update_release_info_date
-
-	#lc_time_run upload_to_docker_hub "release-gold"
 }
 
 function prepare_next_release_branch {

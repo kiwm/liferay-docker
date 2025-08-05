@@ -356,6 +356,8 @@ function upload_to_docker_hub {
 
 		_update_bundles_yml
 
+		lc_cd "$(dirname "${_RELEASE_TOOL_DIR}")"
+
 		LIFERAY_DOCKER_RELEASE_CANDIDATE="false" LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}" ./build_all_images.sh --push-all
 	fi
 
