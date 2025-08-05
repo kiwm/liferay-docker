@@ -124,7 +124,7 @@ function main {
 
 	#lc_time_run update_release_info_date
 
-	#lc_time_run upload_to_docker_hub
+	#lc_time_run upload_to_docker_hub "release-gold"
 }
 
 function prepare_next_release_branch {
