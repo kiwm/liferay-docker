@@ -427,7 +427,7 @@ function _update_bundles_yml {
 	then
 		commit_to_branch_and_send_pull_request \
 			"${_PROJECTS_DIR}/liferay-docker/bundles.yml" \
-			"Add ${_PRODUCT_VERSION} to bundles.yml." \
+			"Add ${_PRODUCT_VERSION} to bundles.yml" \
 			"master" \
 			"brianchandotcom/liferay-docker" \
 			"Add ${_PRODUCT_VERSION} to bundles.yml."
