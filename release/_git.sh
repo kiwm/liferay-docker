@@ -58,9 +58,13 @@ function clone_repository {
 }
 
 function commit_to_branch_and_send_pull_request {
-	git add "${1}"
+	if [ "${1}" != "" ] &&
+	   [ "${2}" != "" ]
+	then
+		git add "${1}"
 
-	git commit --message "${2}"
+		git commit --message "${2}"
+	fi
 
 	local repository_name=$(echo "${4}" | cut --delimiter='/' --fields=2)
 

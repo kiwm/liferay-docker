@@ -622,9 +622,18 @@ function main {
 	then
 		BUILD_ALL_IMAGES_PUSH="push-all"
 
+		prepare_branch_to_commit "${_PROJECTS_DIR}/liferay-docker" "liferay-docker"
+
 		./release_notes.sh commit
 
-		git push
+		commit_to_branch_and_send_pull_request \
+			"" \
+			"" \
+			"master" \
+			"brianchandotcom/liferay-docker" \
+			"${_PRODUCT_VERSION} Docker image change log."
+
+		lc_cd "${_BASE_DIR}"
 	fi
 
 	if [[ " ${@} " =~ " --push " ]]
