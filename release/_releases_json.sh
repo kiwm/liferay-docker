@@ -71,7 +71,7 @@ function _download_product_version_list_html {
 	echo "${product_version_list_html}"
 }
 
-function _get_latest_product_version {
+function get_latest_product_version {
 	local product_name=""
 	local product_version="${1}"
 	local product_version_regex="(?<=<a href=\")"
@@ -84,6 +84,10 @@ function _get_latest_product_version {
 	then
 		product_name="portal"
 		product_version_regex="${product_version_regex}(7\.4\.3\.\d+-ga\d+)"
+	elif [ "${product_version}" == "quarterly-candidate" ]
+	then
+		product_name="dxp/release-candidates"
+		product_version_regex="${product_version_regex}(\d{4}\.q[1-4]\.\d+(-lts)?)"
 	elif [ "${product_version}" == "quarterly" ]
 	then
 		product_name="dxp"
@@ -162,7 +166,7 @@ function _process_new_product {
 					.
 				end
 			)" "${releases_json}" > temp_file.json && mv temp_file.json "${releases_json}"
-	elif is_quarterly_release && [ "$(_get_latest_product_version "quarterly")" == "${_PRODUCT_VERSION}" ]
+	elif is_quarterly_release && [ "$(get_latest_product_version "quarterly")" == "${_PRODUCT_VERSION}" ]
 	then
 		jq "map(
 				if .productGroupVersion | test(\"q\")
@@ -267,7 +271,7 @@ function _promote_product_versions {
 function _tag_recommended_product_versions {
 	for product_version in "ga" "quarterly"
 	do
-		local latest_product_version=$(_get_latest_product_version "${product_version}")
+		local latest_product_version=$(get_latest_product_version "${product_version}")
 
 		lc_log INFO "Latest product version for ${product_version} release is ${latest_product_version}."
 
