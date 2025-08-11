@@ -101,106 +101,11 @@ function main {
 
 	lc_time_run set_jdk_version_and_parameters
 
-	if [ "${LIFERAY_RELEASE_OUTPUT}" != "hotfix" ]
-	then
-		lc_time_run set_artifact_versions "${_PRODUCT_VERSION}" "${_BUILD_TIMESTAMP}"
+	lc_cd "$(dirname "${_RELEASE_TOOL_DIR}")"
 
-		lc_time_run update_release_info_date
+	echo PdwD is "${PWD}"
 
-		lc_time_run set_up_profile
-
-		lc_time_run add_licensing
-
-		lc_time_run compile_product
-
-		lc_time_run obfuscate_licensing
-
-		lc_time_run build_product
-
-		lc_time_run add_ckeditor_license
-
-		lc_time_run deploy_opensearch
-
-		lc_time_run upload_opensearch
-
-		lc_background_run build_sql
-		lc_background_run copy_copyright
-		lc_background_run deploy_elasticsearch_sidecar
-		lc_background_run clean_up_ignored_dxp_modules
-		lc_background_run clean_up_ignored_dxp_plugins
-
-		lc_wait
-
-		lc_time_run install_patching_tool
-
-		lc_time_run generate_api_jars
-
-		lc_time_run generate_api_source_jar
-
-		lc_time_run generate_distro_jar
-
-		generate_poms
-
-		lc_time_run warm_up_tomcat
-
-		lc_time_run package_release
-
-		lc_time_run package_boms
-
-		lc_time_run generate_checksum_files
-
-		lc_time_run generate_release_properties_file
-
-		lc_time_run generate_release_notes
-
-		lc_time_run upload_boms xanadu
-
-		lc_time_run upload_release
-
-		lc_time_run trigger_ci_test_suite
-
-		lc_time_run upload_to_docker_hub "release-candidate"
-	else
-		lc_time_run prepare_release_dir
-
-		lc_time_run copy_release_info_date
-
-		lc_time_run set_up_profile
-
-		lc_time_run add_hotfix_testing_code
-
-		lc_time_run set_hotfix_name
-
-		lc_time_run add_licensing
-
-		lc_time_run compile_product
-
-		lc_time_run obfuscate_licensing
-
-		lc_time_run build_product
-
-		lc_time_run clean_up_ignored_dxp_modules
-
-		lc_time_run clean_up_ignored_dxp_plugins
-
-		lc_time_run add_portal_patcher_properties_jar
-
-		lc_time_run add_portal_patcher_service_properties_jar
-
-		lc_time_run create_hotfix
-
-		lc_time_run calculate_checksums
-
-		lc_time_run create_documentation
-
-		lc_time_run sign_hotfix
-
-		lc_time_run package_hotfix
-
-		lc_time_run upload_hotfix
-
-		lc_time_run report_patcher_status
-	fi
+	LIFERAY_DOCKER_IMAGE_FILTER="2025.q2.1" ./build_all_images.sh
 
 	local end_time=$(date +%s)
 

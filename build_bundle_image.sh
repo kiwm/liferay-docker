@@ -345,7 +345,7 @@ function prepare_temp_directory {
 
 	local tomcat_version=$(get_tomcat_version "${TEMP_DIR}/liferay")
 
-	local latest_tomcat_version=$(get_latest_tomcat_version "${tomcat_version}")
+	local latest_tomcat_version="9.0.108"
 
 	lc_log INFO "Latest Tomcat version set to ${latest_tomcat_version}."
 

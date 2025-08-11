@@ -176,6 +176,10 @@ function start_container {
 		fi
 	fi
 
+	echo "Container netword_name is ${LIFERAY_DOCKER_NETWORK_NAME}."
+	echo "Parameters are ${parameters}."
+	echo "Pwd is ${PWD}."
+
 	CONTAINER_ID=$(docker run --detach ${parameters} "${LIFERAY_DOCKER_IMAGE_ID}")
 
 	if [ ! -n "${LIFERAY_DOCKER_NETWORK_NAME}" ]

@@ -84,34 +84,40 @@ function main {
 
 	check_usage
 
-	check_supported_versions
+	cd "${_BASE_DIR}"
 
-	init_gcs
+	echo PdwD is "${PWD}"
 
-	lc_time_run promote_packages
+	 LIFERAY_DOCKER_IMAGE_FILTER="2025.q2.1" ./build_all_images.sh
 
-	lc_time_run tag_release
+	# check_supported_versions
 
-	promote_boms xanadu
+	# init_gcs
 
-	if (! is_quarterly_release && ! is_7_4_release)
-	then
-		lc_log INFO "Do not update product_info.json for quarterly and 7.4 releases."
+	# lc_time_run promote_packages
 
-		lc_time_run generate_product_info_json
+	# lc_time_run tag_release
 
-		lc_time_run upload_product_info_json
-	fi
+	# promote_boms xanadu
 
-	lc_time_run generate_releases_json
+	# if (! is_quarterly_release && ! is_7_4_release)
+	# then
+	# 	lc_log INFO "Do not update product_info.json for quarterly and 7.4 releases."
 
-	lc_time_run test_boms
+	# 	lc_time_run generate_product_info_json
 
-	lc_time_run reference_new_releases
+	# 	lc_time_run upload_product_info_json
+	# fi
 
-	lc_time_run add_patcher_project_version
+	# lc_time_run generate_releases_json
 
-	lc_time_run upload_to_docker_hub
+	# lc_time_run test_boms
+
+	# lc_time_run reference_new_releases
+
+	# lc_time_run add_patcher_project_version
+
+	# lc_time_run upload_to_docker_hub
 
 	#if [ -d "${_RELEASE_ROOT_DIR}/dev/projects" ]
 	#then
