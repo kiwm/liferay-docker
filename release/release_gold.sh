@@ -73,55 +73,79 @@ function main {
 		return
 	fi
 
-	check_usage
+	# blade version
 
-	check_supported_versions
+	# blade update
 
-	init_gcs
+	# blade version
+	echo "whoami"
+	whoami
 
-	lc_time_run set_jdk_version_and_parameters
-
-	lc_time_run promote_packages
-
-	lc_time_run tag_release
-
-	promote_boms xanadu
-
-	if (! is_quarterly_release && ! is_7_4_release)
+	if [ ! -e /usr/local/bin/jpm ]
 	then
-		lc_log INFO "Do not update product_info.json for quarterly and 7.4 releases."
-
-		lc_time_run generate_product_info_json
-
-		lc_time_run upload_product_info_json
+		echo "Symlink do not extists."
+	else
+		echo "/usr/local/bin/jpm already exists"
 	fi
 
-	lc_time_run generate_releases_json
+	blade update
 
-	lc_time_run reference_new_releases
+	blade version
 
-	lc_time_run test_boms
+	docker ps -a
 
-	lc_time_run update_salesforce_product_version
 
-	#if [ -d "${_RELEASE_ROOT_DIR}/dev/projects" ]
-	#then
-	#	lc_background_run clone_repository liferay-portal-ee
+	# check_usage
 
-	#	lc_wait
-	#fi
+	# check_supported_versions
 
-	#lc_time_run clean_portal_repository
+	# init_gcs
 
-	#lc_time_run prepare_next_release_branch
+	# lc_time_run set_jdk_version_and_parameters
 
-	#lc_time_run update_release_info_date
+	# lc_time_run promote_packages
 
-	#lc_time_run upload_to_docker_hub
+	# lc_time_run tag_release
 
-	lc_time_run add_patcher_project_version
+	# promote_boms xanadu
 
-	lc_time_run upload_to_docker_hub "release-gold"
+	# if (! is_quarterly_release && ! is_7_4_release)
+	# then
+	# 	lc_log INFO "Do not update product_info.json for quarterly and 7.4 releases."
+
+	# 	lc_time_run generate_product_info_json
+
+	# 	lc_time_run upload_product_info_json
+	# fi
+
+	# lc_time_run generate_releases_json
+
+	# lc_time_run reference_new_releases
+
+	# lc_time_run test_boms
+
+	# lc_time_run update_salesforce_product_version
+
+	# #if [ -d "${_RELEASE_ROOT_DIR}/dev/projects" ]
+	# #then
+	# #	lc_background_run clone_repository liferay-portal-ee
+
+	# #	lc_wait
+	# #fi
+
+	# #lc_time_run clean_portal_repository
+
+	# #lc_time_run prepare_next_release_branch
+
+	# #lc_time_run update_release_info_date
+
+	# #lc_time_run upload_to_docker_hub
+
+	# lc_time_run add_patcher_project_version
+
+	# lc_time_run upload_to_docker_hub "release-gold"
+
+
 }
 
 function prepare_next_release_branch {
