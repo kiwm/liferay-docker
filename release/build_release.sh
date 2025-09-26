@@ -72,7 +72,8 @@ function check_usage {
 
 function handle_automated_build {
 	if [ "${BUILD_CAUSE}" != "TIMERTRIGGER" ] &&
-	   [ "${LIFERAY_RELEASE_TEST_MODE}" != "true" ]
+	   [ "${LIFERAY_RELEASE_TEST_MODE}" != "true" ] ||
+	   [ "${LIFERAY_RELEASE_OUTPUT}" == "nightly" ]
 	then
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 	fi
@@ -103,6 +104,8 @@ function main {
 	fi
 
 	export ANT_OPTS="-Xmx10G"
+
+	export LIFERAY_RELEASE_OUTPUT="nightly"
 
 	check_usage
 
@@ -139,7 +142,7 @@ function main {
 
 	lc_time_run set_jdk_version_and_parameters
 
-	if [ "${LIFERAY_RELEASE_OUTPUT}" != "hotfix" ]
+	if [ "${LIFERAY_RELEASE_OUTPUT}" == "nightly" ]
 	then
 		lc_time_run set_artifact_versions "${_PRODUCT_VERSION}" "${_BUILD_TIMESTAMP}"
 
@@ -169,35 +172,78 @@ function main {
 
 		lc_wait
 
-		lc_time_run install_patching_tool
+		lc_time_run warm_up_tomcat
 
-		lc_time_run generate_api_jars
+		lc_time_run package_release
 
-		lc_time_run generate_api_source_jar
+		lc_time_run upload_release
 
-		lc_time_run generate_distro_jar
+		#lc_time_run upload_to_docker_hub "release-nightly"
 
-		generate_poms
+	elif [ "${LIFERAY_RELEASE_OUTPUT}" != "hotfix" ]
+	then
+		lc_time_run set_artifact_versions "${_PRODUCT_VERSION}" "${_BUILD_TIMESTAMP}"
+
+		lc_time_run update_release_info_date
+
+		lc_time_run set_up_profile
+
+		lc_time_run add_licensing
+
+		lc_time_run compile_product
+
+		lc_time_run obfuscate_licensing
+
+		lc_time_run build_product
+
+		lc_time_run add_ckeditor_license
+
+		lc_time_run deploy_opensearch
+
+		lc_time_run upload_opensearch
+
+		lc_background_run build_sql
+		lc_background_run copy_copyright
+		lc_background_run deploy_elasticsearch_sidecar
+		lc_background_run clean_up_ignored_dxp_modules
+		lc_background_run clean_up_ignored_dxp_plugins
+
+		lc_wait
+
+		lc_time_run install_patching_tool //skipped for nightly
+
+		lc_time_run generate_api_jars // skipped for nightly
+
+		lc_time_run generate_api_source_jar // skipped for nightly
+
+		lc_time_run generate_distro_jar // skipped for nightly
+
+		generate_poms // skipped for nightly
 
 		lc_time_run warm_up_tomcat
 
 		lc_time_run package_release
 
-		lc_time_run package_boms
+		lc_time_run package_boms // skipped for nightly
 
-		lc_time_run generate_checksum_files
+		lc_time_run generate_checksum_files // skipped for nightly
 
-		lc_time_run generate_release_properties_file
+		lc_time_run generate_release_	properties_file // skipped for nightly
 
-		lc_time_run generate_release_notes
+		lc_time_run generate_release_notes // skipped for nightly
 
-		lc_time_run upload_boms xanadu
+		lc_time_run upload_boms xanadu // skipped for nightly
 
 		lc_time_run upload_release
 
-		lc_time_run trigger_ci_test_suite
+		lc_time_run trigger_ci_test_suite //skipped for nightly seting TRIGGER_CI_TEST_SUITE to false
 
-		lc_time_run upload_to_docker_hub "release-candidate"
+		if [ "${LIFERAY_RELEASE_NIGHTLY}" == "true" ]
+		then
+			lc_time_run upload_to_docker_hub "release-nightly"
+		else
+			lc_time_run upload_to_docker_hub "release-candidate"
+		fi
 
 		lc_time_run scan_release_candidate_docker_image
 	else

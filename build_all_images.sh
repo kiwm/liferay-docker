@@ -76,6 +76,11 @@ function build_bundle_image {
 		bundle_url="releases-cdn.liferay.com/portal/release-candidates/${version}/$(curl -fsSL "https://releases-cdn.liferay.com/portal/release-candidates/${version}/.lfrrelease-tomcat-bundle")"
 	fi
 
+	if is_nightly_release
+	then
+		bundle_url="releases-cdn.liferay.com/dxp/nightly/liferay-dxp-tomcat-7.4.13.nightly.7z"
+	fi
+
 	if [ -z "${bundle_url}" ]
 	then
 		bundle_url="releases-cdn.liferay.com/dxp/${version}/"$(curl --fail --location --show-error --silent "https://releases-cdn.liferay.com/dxp/${version}/.lfrrelease-tomcat-bundle")
@@ -137,6 +142,15 @@ function build_bundle_images {
 		echo "Building bundle images for release candidate ${LIFERAY_DOCKER_IMAGE_FILTER}."
 
 		build_bundle_image "" "false" "${LIFERAY_DOCKER_IMAGE_FILTER}"
+
+		return
+	fi
+
+	if is_release_nightly
+	then
+		echo "Building bundle images for nightly ${LIFERAY_DOCKER_IMAGE_FILTER}."
+
+		build_bundle_image "" "true" "${LIFERAY_DOCKER_IMAGE_FILTER}"
 
 		return
 	fi

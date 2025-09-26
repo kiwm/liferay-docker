@@ -331,8 +331,26 @@ function upload_opensearch {
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 	fi
 
-	gsutil mv -r "${_BUNDLES_DIR}/osgi/portal/com.liferay.portal.search.opensearch2.api.jar" "gs://liferay-releases/opensearch2/${LIFERAY_RELEASE_PRODUCT_NAME}/${_PRODUCT_VERSION}/com.liferay.portal.search.opensearch2.api.jar"
-	gsutil mv -r "${_BUNDLES_DIR}/osgi/portal/com.liferay.portal.search.opensearch2.impl.jar" "gs://liferay-releases/opensearch2/${LIFERAY_RELEASE_PRODUCT_NAME}/${_PRODUCT_VERSION}/com.liferay.portal.search.opensearch2.impl.jar"
+	local folder_structure="${LIFERAY_RELEASE_PRODUCT_NAME}/${_PRODUCT_VERSION}"
+
+	if [ "${LIFERAY_RELEASE_OUTPUT}" == "nightly" ]
+	then
+		folder_structure="nightly"
+	fi
+
+	for component in api impl
+	do
+		gsutil mv \
+			"${_BUNDLES_DIR}/osgi/portal/com.liferay.portal.search.opensearch2.${component}.jar" \
+			"gs://liferay-releases/opensearch2/${folder_structure}/com.liferay.portal.search.opensearch2.${component}.jar"
+
+		if [ "${?}" -ne 0 ]
+		then
+			lc_log ERROR "Unable to upload com.liferay.portal.search.opensearch2.${component}.jar."
+	
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		fi
+	done
 }
 
 function upload_release {
@@ -347,20 +365,35 @@ function upload_release {
 
 	local ssh_connection="false"
 
-	if (has_ssh_connection "lrdcom-vm-1")
+	if false
 	then
 		lc_log INFO "Connecting to lrdcom-vm-1."
 
 		ssh_connection="true"
 
-		ssh root@lrdcom-vm-1 rm --recursive "/www/releases.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/release-candidates/${_PRODUCT_VERSION}-*"
+		if [ "${LIFERAY_RELEASE_OUTPUT}" == "nightly" ]
+		then
+			ssh root@lrdcom-vm-1 rm --recursive "/www/releases.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/nightly/*"
+		else
+			ssh root@lrdcom-vm-1 rm --recursive "/www/releases.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/release-candidates/${_PRODUCT_VERSION}-*"
 
-		ssh root@lrdcom-vm-1 mkdir --parents "/www/releases.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/release-candidates/${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}"
+			ssh root@lrdcom-vm-1 mkdir --parents "/www/releases.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/release-candidates/${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}"
+		fi
+
 	else
 		lc_log INFO "Skipping lrdcom-vm-1."
 	fi
 
-	gsutil rm -r "gs://liferay-releases-candidates/${_PRODUCT_VERSION}-*"
+	local gsutil_base="gs://liferay-releases-candidates/${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}"
+	local scp_base="/www/releases.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/release-candidates/${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}"
+
+	if [ "${LIFERAY_RELEASE_OUTPUT}" == "nightly" ]
+	then
+		gsutil_base="gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}/nightly_test"
+		scp_base="/www/releases.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/nightly_test"
+	else
+		gsutil rm -r "gs://liferay-releases-candidates/${_PRODUCT_VERSION}-*"
+	fi
 
 	for file in $(ls --almost-all --ignore "*.jar*" --ignore "*.pom*")
 	do
@@ -368,11 +401,11 @@ function upload_release {
 		then
 			echo "Copying ${file}."
 
-			gsutil cp "${_BUILD_DIR}/release/${file}" "gs://liferay-releases-candidates/${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}/"
+			gsutil cp "${_BUILD_DIR}/release/${file}" "${gsutil_base}/"
 
 			if [ "${ssh_connection}" == "true" ]
 			then
-				scp "${file}" root@lrdcom-vm-1:"/www/releases.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/release-candidates/${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}"
+				scp "${file}" root@lrdcom-vm-1:"${scp_base}"
 			fi
 		fi
 	done
@@ -392,6 +425,10 @@ function upload_to_docker_hub {
 	if [ "${1}" == "release-candidate" ]
 	then
 		LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}" LIFERAY_DOCKER_RELEASE_CANDIDATE="true" ./build_all_images.sh --push
+
+	elif [ "${1}" == "release-nightly" ]
+	then
+		LIFERAY_DOCKER_IMAGE_FILTER="7.4.13.nightly" LIFERAY_DOCKER_RELEASE_CANDIDATE="false" ./build_all_images.sh --push
 	else
 		prepare_branch_to_commit "${_BASE_DIR}" "liferay-docker"
 
