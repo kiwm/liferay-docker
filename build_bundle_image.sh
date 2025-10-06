@@ -278,23 +278,26 @@ function prepare_slim_image {
 	local product_name=$(echo "${LIFERAY_DOCKER_RELEASE_FILE_URL}" | cut --delimiter='/' --fields=2)
 	local product_version=$(echo "${LIFERAY_DOCKER_RELEASE_FILE_URL}" | cut --delimiter='/' --fields=3)
 
-	LIFERAY_COMMON_DOWNLOAD_SKIP_CACHE="true" lc_download "https://releases-gcp.liferay.com/opensearch2/${product_name}/${product_version}/com.liferay.portal.search.opensearch2.api.jar" "${TEMP_DIR}/liferay/deploy/com.liferay.portal.search.opensearch2.api.jar"
+	local folder_structure="${product_name}/${product_version}"
 
-	if [ "${?}" -ne 0 ]
+	if is_release_output_nightly
 	then
-		lc_log ERROR "Unable to download com.liferay.portal.search.opensearch2.api.jar."
-
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		folder_structure="nightly"
 	fi
 
-	LIFERAY_COMMON_DOWNLOAD_SKIP_CACHE="true" lc_download "https://releases-gcp.liferay.com/opensearch2/${product_name}/${product_version}/com.liferay.portal.search.opensearch2.impl.jar" "${TEMP_DIR}/liferay/deploy/com.liferay.portal.search.opensearch2.impl.jar"
+	for component in api impl
+	do
+		LIFERAY_COMMON_DOWNLOAD_SKIP_CACHE="true" lc_download \
+			"https://releases-gcp.liferay.com/opensearch2/${folder_structure}/com.liferay.portal.search.opensearch2.${component}.jar" \
+			"${TEMP_DIR}/liferay/deploy/com.liferay.portal.search.opensearch2.${component}.jar" \
 
-	if [ "${?}" -ne 0 ]
-	then
-		lc_log ERROR "Unable to download com.liferay.portal.search.opensearch2.impl.jar."
-
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
+		if [ "${?}" -ne 0 ]
+		then
+			lc_log ERROR "Unable to download com.liferay.portal.search.opensearch2.${component}.jar."
+	
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		fi
+	done
 }
 
 function prepare_temp_directory {
