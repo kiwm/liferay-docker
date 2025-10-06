@@ -139,7 +139,45 @@ function main {
 
 	lc_time_run set_jdk_version_and_parameters
 
-	if [ "${LIFERAY_RELEASE_OUTPUT}" != "hotfix" ]
+	if is_release_output_nightly
+	then
+		lc_time_run set_artifact_versions "${_PRODUCT_VERSION}" "${_BUILD_TIMESTAMP}"
+
+		lc_time_run update_release_info_date
+
+		lc_time_run set_up_profile
+
+		lc_time_run add_licensing
+
+		lc_time_run compile_product
+
+		lc_time_run obfuscate_licensing
+
+		lc_time_run build_product
+
+		lc_time_run add_ckeditor_license
+
+		lc_time_run deploy_opensearch
+
+		lc_time_run upload_opensearch
+
+		lc_background_run build_sql
+		lc_background_run copy_copyright
+		lc_background_run deploy_elasticsearch_sidecar
+		lc_background_run clean_up_ignored_dxp_modules
+		lc_background_run clean_up_ignored_dxp_plugins
+
+		lc_wait
+
+		lc_time_run warm_up_tomcat
+
+		lc_time_run package_release
+
+		lc_time_run upload_release
+
+		lc_time_run upload_to_docker_hub "release-nightly"
+
+	elif [ "${LIFERAY_RELEASE_OUTPUT}" != "hotfix" ]
 	then
 		lc_time_run set_artifact_versions "${_PRODUCT_VERSION}" "${_BUILD_TIMESTAMP}"
 
