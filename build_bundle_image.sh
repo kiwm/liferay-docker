@@ -280,7 +280,8 @@ function prepare_slim_image {
 
 	local folder_structure="${product_name}/${product_version}"
 
-	if is_release_output_nightly
+	if is_nightly_release "${LIFERAY_DOCKER_RELEASE_VERSION}"
+
 	then
 		folder_structure="nightly"
 	fi
