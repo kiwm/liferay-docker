@@ -176,6 +176,22 @@ function package_boms {
 	rm --force .touch
 }
 
+function package_nightly_release {
+	7z a "${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}-tomcat-7.4.13.nightly-${_BUILD_TIMESTAMP}.7z" \
+		"liferay-${LIFERAY_RELEASE_PRODUCT_NAME}"
+
+	tar \
+		--create \
+		--file "${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}-tomcat-7.4.13.nightly-${_BUILD_TIMESTAMP}.tar.gz" \
+		--gzip \
+		"liferay-${LIFERAY_RELEASE_PRODUCT_NAME}"
+
+	zip -qr "${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}-tomcat-7.4.13.nightly-${_BUILD_TIMESTAMP}.zip" \
+		"liferay-${LIFERAY_RELEASE_PRODUCT_NAME}"
+
+	rm --force --recursive "${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}"
+}
+
 function package_portal_dependencies {
 	if is_7_3_release
 	then
@@ -251,28 +267,6 @@ function package_portal_dependencies {
 }
 
 function package_release {
-	if is_portal_release
-	then
-		rm --force --recursive "${_BUNDLES_DIR}/routes/default/dxp"
-	fi
-
-	rm --force --recursive "${_BUILD_DIR}/release"
-
-	local package_dir="${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}"
-
-	mkdir --parents "${package_dir}"
-
-	cp --archive "${_BUNDLES_DIR}"/* "${package_dir}"
-
-	echo "${_GIT_SHA}" > "${package_dir}"/.githash
-	echo "${_PRODUCT_VERSION}" > "${package_dir}"/.liferay-version
-
-	touch "${package_dir}"/.liferay-home
-
-	lc_cd "${_BUILD_DIR}/release"
-
-	package_portal_dependencies
-
 	7z a "${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}-tomcat-${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}.7z" liferay-${LIFERAY_RELEASE_PRODUCT_NAME}
 
 	echo "liferay-${LIFERAY_RELEASE_PRODUCT_NAME}-tomcat-${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}.7z" > "${_BUILD_DIR}"/release/.lfrrelease-tomcat-bundle
@@ -313,4 +307,35 @@ function package_release {
 	rm --force --recursive "${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}"
 
 	generate_javadocs
+}
+
+function prepare_release_artifacts {
+	if is_portal_release
+	then
+		rm --force --recursive "${_BUNDLES_DIR}/routes/default/dxp"
+	fi
+
+	rm --force --recursive "${_BUILD_DIR}/release"
+
+	local package_dir="${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}"
+
+	mkdir --parents "${package_dir}"
+
+	cp --archive "${_BUNDLES_DIR}"/* "${package_dir}"
+
+	echo "${_GIT_SHA}" > "${package_dir}"/.githash
+	echo "${_PRODUCT_VERSION}" > "${package_dir}"/.liferay-version
+
+	touch "${package_dir}"/.liferay-home
+
+	lc_cd "${_BUILD_DIR}/release"
+
+	package_portal_dependencies
+
+	if is_release_output_nightly
+	then
+		package_nightly_release
+	else
+		package_release
+	fi
 }
