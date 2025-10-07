@@ -125,6 +125,12 @@ function main {
 	lc_time_run clean_portal_repository
 
 	lc_background_run init_gcs
+
+	gsutil rm -r "gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}/nightly-test/"
+
+	gsutil rm -r "gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}/nightly_test/"
+	lc_log INFO "exit"
+	exit
 	lc_background_run update_portal_repository
 
 	lc_wait
