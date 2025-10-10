@@ -72,7 +72,8 @@ function check_usage {
 
 function handle_automated_build {
 	if [ "${BUILD_CAUSE}" != "TIMERTRIGGER" ] &&
-	   [ "${LIFERAY_RELEASE_TEST_MODE}" != "true" ]
+	   [ "${LIFERAY_RELEASE_TEST_MODE}" != "true" ] ||
+	   [ "$(get_release_output)" == "nightly" ]
 	then
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 	fi
@@ -139,7 +140,8 @@ function main {
 
 	lc_time_run set_jdk_version_and_parameters
 
-	if [ "${LIFERAY_RELEASE_OUTPUT}" != "hotfix" ]
+	if [ "$(get_release_output)" == "nightly" ] ||
+	   [ "$(get_release_output)" == "release-candidate" ]
 	then
 		lc_time_run set_artifact_versions "${_PRODUCT_VERSION}" "${_BUILD_TIMESTAMP}"
 
@@ -155,8 +157,6 @@ function main {
 
 		lc_time_run build_product
 
-		lc_time_run add_ckeditor_license
-
 		lc_time_run deploy_opensearch
 
 		lc_time_run upload_opensearch
@@ -169,38 +169,47 @@ function main {
 
 		lc_wait
 
-		lc_time_run install_patching_tool
+		if [ "$(get_release_output)" == "release-candidate" ]
+		then
+			lc_time_run add_ckeditor_license
 
-		lc_time_run generate_api_jars
+			lc_time_run install_patching_tool
 
-		lc_time_run generate_api_source_jar
+			lc_time_run generate_api_jars
 
-		lc_time_run generate_distro_jar
+			lc_time_run generate_api_source_jar
 
-		generate_poms
+			lc_time_run generate_distro_jar
+
+			generate_poms
+		fi
 
 		lc_time_run warm_up_tomcat
 
 		lc_time_run package_release
 
-		lc_time_run package_boms
+		if [ "$(get_release_output)" == "release-candidate" ]
+		then
+			lc_time_run package_boms
 
-		lc_time_run generate_checksum_files
+			lc_time_run generate_checksum_files
 
-		lc_time_run generate_release_properties_file
+			lc_time_run generate_release_properties_file
 
-		lc_time_run generate_release_notes
+			lc_time_run generate_release_notes
 
-		lc_time_run upload_boms xanadu
+			lc_time_run upload_boms xanadu
+		fi
 
 		lc_time_run upload_release
 
 		lc_time_run trigger_ci_test_suite
 
-		lc_time_run upload_to_docker_hub "release-candidate"
+		lc_time_run upload_to_docker_hub
 
 		lc_time_run scan_release_candidate_docker_image
-	else
+	elif [ "$(get_release_output)" == "hotfix" ]
+	then
 		lc_time_run prepare_release_dir
 
 		lc_time_run copy_release_info_date
