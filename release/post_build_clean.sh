@@ -1,6 +1,8 @@
 #!/bin/bash
 
-source ./_liferay_common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_liferay_common.sh"
+
+source "${BASH_SOURCE[0]}/_liferay_common.sh"
 
 function main {
 	if [ $(date +%w) != 2 ]
