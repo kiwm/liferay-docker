@@ -36,6 +36,8 @@ function _notify_info_sec {
 			"LRINFOSEC" \
 			"${1} - Release Candidate | Prisma Cloud Scan Vulnerabilities")"
 
+	lc_log INFO "Jira issue key: ${issue_key}"
+
 	if [[ "${issue_key}" != LRINFOSEC-* ]]
 	then
 		lc_log ERROR "Unable to create a Jira issue for ${1}."
