@@ -13,7 +13,7 @@ source ./_patcher.sh
 source ./_product.sh
 source ./_publishing.sh
 source ./_releases_json.sh
-source ./_scan_docker_images.sh
+source ./scan_docker_images.sh
 
 function check_usage {
 
@@ -213,7 +213,7 @@ function main {
 
 		lc_time_run upload_to_docker_hub
 
-		lc_time_run scan_release_candidate_docker_image
+		lc_time_run set_liferay_docker_image_name
 	elif [ "$(get_release_output)" == "hotfix" ]
 	then
 		lc_time_run prepare_release_dir

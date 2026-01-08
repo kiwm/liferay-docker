@@ -1,26 +1,56 @@
 #!/bin/bash
 
 source ../_liferay_common.sh
+source ../_release_common.sh
 source ./_jira.sh
 
-function scan_release_candidate_docker_image {
-	if [ "${LIFERAY_RELEASE_TEST_MODE}" == "true" ]
+function check_usage {
+	if [ -z "${LIFERAY_DOCKER_IMAGE_NAME}" ]
+	then
+		print_help
+	fi
+}
+
+function main {
+	if [[ "${BASH_SOURCE[0]}" != "${0}" ]]
 	then
 		return
 	fi
 
-	LIFERAY_IMAGE_NAMES="liferay/release-candidates:${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}"
+	check_usage
+
+	lc_time_run _scan_docker_images
+}
+
+function set_liferay_docker_image_name {
+	export LIFERAY_DOCKER_IMAGE_NAME="liferay/release-candidates:${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}"
 
 	if [ "$(get_release_output)" == "nightly" ]
 	then
-		LIFERAY_IMAGE_NAMES="liferay/dxp:7.4.13.nightly"
+		LIFERAY_DOCKER_IMAGE_NAME="liferay/dxp:7.4.13.nightly"
 	fi
 
-	_scan_docker_images
+	lc_log INFO "Setting Liferay Docker image to ${LIFERAY_DOCKER_IMAGE_NAME}"
+
+	echo "LIFERAY_DOCKER_IMAGE_NAME=${LIFERAY_DOCKER_IMAGE_NAME}" > "/tmp/liferay_docker_image_name.properties"
+}
+
+function print_help {
+	echo "Usage: LIFERAY_DOCKER_IMAGE_NAME=<<liferay_docker_image_name>> ${0}"
+	echo ""
+	echo "The script reads the following environment variables:"
+	echo ""
+	echo "    LIFERAY_DOCKER_IMAGE_NAME: Liferay Docker image name to scan"
+	echo "    LIFERAY_RELEASE_OUTPUT (optional): Set to \"nightly\" for nightly builds. The default is \"release-candidate\"."
+	echo "    LIFERAY_RELEASE_UPLOAD (optional): Set this to \"true\" to notify info sec"
+	echo ""
+	echo "Example: LIFERAY_DOCKER_IMAGE_NAME=liferay/release-candidates:2025.q1.12-123456789 ${0}"
+
+	exit "${LIFERAY_COMMON_EXIT_CODE_HELP}"
 }
 
 function _notify_info_sec {
-	if ! is_quarterly_release || [ "${LIFERAY_RELEASE_UPLOAD}" != "true" ]
+	if ! is_quarterly_release_docker_image "${LIFERAY_DOCKER_IMAGE_NAME}" || [ "${LIFERAY_RELEASE_UPLOAD}" != "true" ]
 	then
 		lc_log INFO "Skipping InfoSec notification."
 
@@ -47,9 +77,9 @@ function _notify_info_sec {
 }
 
 function _scan_docker_images {
-	if [ -z "${LIFERAY_IMAGE_NAMES}" ]
+	if [ -z "${LIFERAY_DOCKER_IMAGE_NAME}" ]
 	then
-		lc_log ERROR "\${LIFERAY_IMAGE_NAMES} is undefined."
+		lc_log ERROR "\${LIFERAY_DOCKER_IMAGE_NAME} is undefined."
 
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
@@ -107,9 +137,11 @@ function _scan_docker_images {
 
 	local scan_result=0
 
-	while read -r image_name
+	while read -r liferay_docker_image_name
 	do
-		lc_log INFO "Scanning ${image_name}."
+		lc_log INFO "Scanning ${liferay_docker_image_name}."
+
+		docker pull "${liferay_docker_image_name}"
 
 		local scan_output=$(\
 			./twistcli images scan \
@@ -120,28 +152,30 @@ function _scan_docker_images {
 						-name docker.sock 2> /dev/null)" \
 				--password "${LIFERAY_PRISMA_CLOUD_SECRET}" \
 				--user "${LIFERAY_PRISMA_CLOUD_ACCESS_KEY}" \
-				"${image_name}")
+				"${liferay_docker_image_name}")
 
-		lc_log INFO "Scan output for ${image_name}:"
+		lc_log INFO "Scan output for ${liferay_docker_image_name}:"
 
 		lc_log INFO "${scan_output}"
 
 		if [[ ${scan_output} == *"Compliance threshold check results: PASS"* ]] &&
 		   [[ ${scan_output} == *"Vulnerability threshold check results: PASS"* ]]
 		then
-			lc_log INFO "The result of scan for ${image_name} is: PASS."
+			lc_log INFO "The result of scan for ${liferay_docker_image_name} is: PASS."
 		else
-			lc_log INFO "The result of scan for ${image_name} is: FAIL."
+			lc_log INFO "The result of scan for ${liferay_docker_image_name} is: FAIL."
 
-			lc_log ERROR "The Docker image ${image_name} has security vulnerabilities."
+			lc_log ERROR "The Liferay Docker image ${liferay_docker_image_name} has security vulnerabilities."
 
-			_notify_info_sec "${image_name}" "${scan_output}"
+			_notify_info_sec "${liferay_docker_image_name}" "${scan_output}"
 
 			scan_result="${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
-	done < <(echo "${LIFERAY_IMAGE_NAMES}" | tr ',' '\n')
+	done < <(echo "${LIFERAY_DOCKER_IMAGE_NAME}" | tr ',' '\n')
 
 	rm --force ./twistcli
 
 	return "${scan_result}"
 }
+
+main "${@}"
