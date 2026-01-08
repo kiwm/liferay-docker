@@ -4,8 +4,10 @@ source /usr/local/bin/_liferay_bundle_common.sh
 source /usr/local/bin/_liferay_common.sh
 
 function main {
+	echo "[LIFERAY] Configuring ${JAVA_VERSION}..."
 	if [ "${JAVA_VERSION}" == "zulu21" ] && [ ! -e "/opt/liferay/data/.elasticsearch7.initialized" ]
 	then
+		echo "[LIFERAY] Removing existing Elasticsearch data to avoid Zulu 21 compatibility issues."
 		rm --force --recursive /opt/liferay/data/elasticsearch7
 
 		touch /opt/liferay/data/.elasticsearch7.initialized
