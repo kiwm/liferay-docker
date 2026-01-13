@@ -9,6 +9,20 @@ function check_usage {
 	then
 		print_help
 	fi
+
+	_RELEASE_TOOL_DIR=$(dirname "$(readlink /proc/$$/fd/255 2>/dev/null)")
+
+	lc_cd "${_RELEASE_TOOL_DIR}"
+
+	mkdir --parents release-data
+
+	lc_cd release-data
+
+	_RELEASE_ROOT_DIR="${PWD}"
+
+	_BUILD_DIR="${_RELEASE_ROOT_DIR}"/build
+
+	LIFERAY_COMMON_LOG_DIR="${_BUILD_DIR}"
 }
 
 function main {
