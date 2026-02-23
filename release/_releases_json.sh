@@ -404,21 +404,6 @@ function _tag_recommended_product_versions {
 }
 
 function _upload_releases_json {
-	ssh root@lrdcom-vm-1 "exit" &> /dev/null
-
-	if [ "${?}" -eq 0 ]
-	then
-		lc_log INFO "Backing up to /www/releases.liferay.com/releases.json.BACKUP."
-
-		ssh root@lrdcom-vm-1 cp --force "/www/releases.liferay.com/releases.json" "/www/releases.liferay.com/releases.json.BACKUP"
-
-		lc_log INFO "Uploading ${_PROMOTION_DIR}/releases.json to /www/releases.liferay.com/releases.json."
-
-		scp "${_PROMOTION_DIR}/releases.json" "root@lrdcom-vm-1:/www/releases.liferay.com/releases.json.upload"
-
-		ssh root@lrdcom-vm-1 mv --force "/www/releases.liferay.com/releases.json.upload" "/www/releases.liferay.com/releases.json"
-	fi
-
 	lc_log INFO "Backing up to gs://liferay-releases/releases.json.BACKUP."
 
 	gsutil cp "gs://liferay-releases/releases.json" "gs://liferay-releases/releases.json.BACKUP"

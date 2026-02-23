@@ -26,7 +26,9 @@ function check_usage {
 		LIFERAY_RELEASE_GIT_REF=${LIFERAY_RELEASE_GIT_SHA}
 	fi
 
-	if [ -z "${LIFERAY_RELEASE_GIT_REF}" ]
+	if [ -z "${LIFERAY_RELEASE_GIT_REF}" ] ||
+	   ([ -z "${LIFERAY_RELEASE_GCS_TOKEN}" ] &&
+	   [ "$(get_environment_type)" == "local" ])
 	then
 		print_help
 	fi
@@ -259,6 +261,8 @@ function main {
 		lc_time_run report_patcher_status
 	fi
 
+	lc_time_run clear_gcs_auth
+
 	local end_time=$(date +%s)
 
 	local seconds=$((end_time - _BUILD_TIMESTAMP))
@@ -287,7 +291,7 @@ function print_help {
 	echo "    LIFERAY_RELEASE_PRODUCT_NAME (optional): Set to \"portal\" for CE. The default is \"DXP\"."
 	echo "    LIFERAY_RELEASE_UPLOAD (optional): Set this to \"true\" to upload artifacts"
 	echo ""
-	echo "Example: LIFERAY_RELEASE_GIT_REF=release-2023.q3 ${0}"
+	echo "Example: LIFERAY_RELEASE_GCS_TOKEN=./path/to/*.json LIFERAY_RELEASE_GIT_REF=release-2023.q3 ${0}"
 
 	exit "${LIFERAY_COMMON_EXIT_CODE_HELP}"
 }

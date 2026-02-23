@@ -287,10 +287,14 @@ function main {
 function prepare_slim_image {
 	rm --force --recursive "${TEMP_DIR}/liferay/elasticsearch-sidecar"
 
-	local product_name=$(echo "${LIFERAY_DOCKER_RELEASE_FILE_URL}" | cut --delimiter='/' --fields=2)
-	local product_version=$(echo "${LIFERAY_DOCKER_RELEASE_FILE_URL}" | cut --delimiter='/' --fields=3)
+	local product_name="dxp"
 
-	local release_dir_name="${product_name}/${product_version}"
+	if is_ga_release "${LIFERAY_DOCKER_RELEASE_VERSION}"
+	then
+		product_name="portal"
+	fi
+
+	local release_dir_name="${product_name}/${LIFERAY_DOCKER_RELEASE_VERSION}"
 
 	if is_nightly_release "${LIFERAY_DOCKER_RELEASE_VERSION}"
 	then
@@ -317,11 +321,15 @@ function prepare_temp_directory {
 
 	local download_dir=${LIFERAY_DOCKER_RELEASE_FILE_URL%/*}
 
-	download_dir=${download_dir#*com/}
-	download_dir=${download_dir#*com/}
-	download_dir=${download_dir#*liferay-release-tool/}
-	download_dir=${download_dir#*private/ee/}
-	download_dir=downloads/${download_dir}
+	download_dir=$( \
+		echo "${download_dir}" |
+		sed \
+			--expression "s/.*com\///" \
+			--expression "s/.*gs:\/\///" \
+			--expression "s/.*liferay-release-tool\///" \
+			--expression "s/.*private\/ee\///")
+
+	download_dir="downloads/${download_dir}"
 
 	download "${download_dir}/${RELEASE_FILE_NAME}" "${LIFERAY_DOCKER_RELEASE_FILE_URL}"
 
