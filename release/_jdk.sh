@@ -10,7 +10,7 @@ function set_jdk_version_and_parameters {
 	then
 		if [[ "$(get_release_year)" -ge 2025 ]]
 		then
-			jdk_version="openjdk17"
+			jdk_version="zulu17"
 		fi
 	fi
 
@@ -41,6 +41,7 @@ function set_jdk_version_and_parameters {
 			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
 	fi
+	jdk_version="/home/me/Downloads/jdk-17.0.2_linux-x64_bin/jdk-17.0.2/"
 
 	lc_log INFO "Using JDK ${jdk_version} for release ${_PRODUCT_VERSION}."
 
