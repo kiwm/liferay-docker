@@ -44,7 +44,7 @@ function set_jdk_version_and_parameters {
 
 	lc_log INFO "Using JDK ${jdk_version} for release ${_PRODUCT_VERSION}."
 
-	export JAVA_HOME="/opt/java/${jdk_version}"
+	export JAVA_HOME="/home/me/Downloads/zulu17.56.15-ca-jdk17.0.14-linux_x64"
 
 	if [[ "${jdk_version}" == *"8"* ]] && [[ ! "${JAVA_OPTS}" =~ "-XX:MaxPermSize" ]]
 	then

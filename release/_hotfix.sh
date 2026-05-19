@@ -7,6 +7,8 @@ function add_file_to_hotfix {
 
 	local file_dir=$(dirname "${file_name}")
 
+	lc_log DEBUG "Copying ${1} into the hotfix binaries directory at ${file_dir}."
+
 	mkdir --parents "${_BUILD_DIR}/hotfix/binaries/${file_dir}"
 
 	cp "${_BUNDLES_DIR}/${1}" "${_BUILD_DIR}/hotfix/binaries/${file_dir}"
@@ -107,6 +109,10 @@ function compare_jars {
 	local jar1=${_BUNDLES_DIR}/"${1}"
 	local jar2=${_RELEASE_DIR}/"${1}"
 
+	lc_log DEBUG "Comparing JAR contents for ${1}."
+	lc_log DEBUG "    Built JAR:     ${jar1}"
+	lc_log DEBUG "    Reference JAR: ${jar2}"
+
 	function compare_property_in_packaged_file {
 		local jar1="${1}"
 		local jar2="${2}"
@@ -115,6 +121,10 @@ function compare_jars {
 
 		local value1=$(unzip -p "${jar1}" "${packaged_file}" | sed --null-data --regexp-extended "s@\r?\n @@g" | grep --word-regexp "${property}")
 		local value2=$(unzip -p "${jar2}" "${packaged_file}" | sed --null-data --regexp-extended "s@\r?\n @@g" | grep --word-regexp "${property}")
+
+		lc_log DEBUG "Comparing property ${property} inside ${packaged_file}:"
+		lc_log DEBUG "    Built JAR:     ${value1:-<empty>}"
+		lc_log DEBUG "    Reference JAR: ${value2:-<empty>}"
 
 		if [ "${value1}" == "${value2}" ]
 		then
@@ -179,13 +189,29 @@ function compare_jars {
 
 	jar_descriptions=$(echo "${jar_descriptions}" | awk '($1 == 1) && ($3 == "Defl:N") { print $5 }' | uniq)
 
+	local verbose_log=""
+
 	if [ -n "${jar_descriptions}" ]
 	then
+		lc_log DEBUG "Entries that differ inside ${1} before filtering:"
+		lc_log DEBUG "$(echo "${jar_descriptions}" | sed "s/^/    /")"
+
 		if (echo "${jar_descriptions}" | grep --quiet "META-INF/MANIFEST.MF")
 		then
 			if (compare_property_in_packaged_file "${jar1}" "${jar2}" "META-INF/MANIFEST.MF" "Export-Package")
 			then
+				lc_log DEBUG "Excluding META-INF/MANIFEST.MF from ${1} because Export-Package matches in both JARs."
+
 				jar_descriptions=$(echo "${jar_descriptions}" | sed "/META-INF\/MANIFEST.MF/d")
+			else
+				lc_log DEBUG "Keeping META-INF/MANIFEST.MF in ${1} because Export-Package differs (full dump deferred until JAR is confirmed added)."
+
+				verbose_log+="
+Built MANIFEST.MF (first 80 lines):
+$(unzip -p "${jar1}" META-INF/MANIFEST.MF | head --lines=80 | sed "s/^/    /")
+Reference MANIFEST.MF (first 80 lines):
+$(unzip -p "${jar2}" META-INF/MANIFEST.MF | head --lines=80 | sed "s/^/    /")
+"
 			fi
 		fi
 
@@ -217,9 +243,20 @@ function compare_jars {
 
 					if [ -n "${diff_result}" ]
 					then
+						lc_log DEBUG "Class ${line} in ${1} has javap differences (full diff deferred until JAR is confirmed added)."
+
+						verbose_log+="
+Class ${line} javap diff (first 40 lines):
+$(echo "${diff_result}" | head --lines=40 | sed "s/^/    /")
+"
+
 						new_jar_descriptions+="${line}"$'\n'
+					else
+						lc_log DEBUG "Class ${line} in ${1} is byte-different but javap output matches; ignoring."
 					fi
 				else
+					lc_log DEBUG "Non-class entry ${line} in ${1} differs and has no content-aware filter; will mark JAR as changed."
+
 					new_jar_descriptions+="${line}"$'\n'
 				fi
 			done <<< "${jar_descriptions}"
@@ -239,6 +276,12 @@ function compare_jars {
 					lc_log INFO "${new_jar_descriptions}" | sed "s/^/    /"
 					lc_log INFO ""
 
+					if [ -n "${verbose_log}" ]
+					then
+						lc_log DEBUG "Deep-dive details for ${1} (shown because the JAR is being added):"
+						lc_log DEBUG "${verbose_log}"
+					fi
+
 					return 0
 				fi
 			done <<< "${new_jar_descriptions}"
@@ -252,9 +295,17 @@ function compare_jars {
 			lc_log INFO "${new_jar_descriptions}" | sed "s/^/    /"
 			lc_log INFO ""
 
+			if [ -n "${verbose_log}" ]
+			then
+				lc_log DEBUG "Deep-dive details for ${1} (shown because the JAR is being added):"
+				lc_log DEBUG "${verbose_log}"
+			fi
+
 			return 0
 		fi
 	fi
+
+	lc_log DEBUG "No meaningful changes detected inside ${1}."
 
 	return 1
 }
@@ -379,12 +430,25 @@ function create_hotfix {
 
 	mkdir --parents "${_BUILD_DIR}"/hotfix
 
-	echo "Comparing ${_BUNDLES_DIR} and ${_RELEASE_DIR}."
+	lc_log INFO "Creating hotfix by diffing the built bundle against the reference release."
+	lc_log INFO "    Built bundles directory:    ${_BUNDLES_DIR}"
+	lc_log INFO "    Reference release directory: ${_RELEASE_DIR}"
 
-	diff --brief --recursive "${_BUNDLES_DIR}" "${_RELEASE_DIR}" | grep --invert-match /work/Catalina
+	local diff_output=$(diff --brief --recursive "${_BUNDLES_DIR}" "${_RELEASE_DIR}" | grep --invert-match /work/Catalina)
 
-	diff --brief --recursive "${_BUNDLES_DIR}" "${_RELEASE_DIR}" | grep --invert-match /work/Catalina | while read -r change
+	local diff_count=$(echo "${diff_output}" | grep --count . || true)
+
+	lc_log INFO "diff --brief found ${diff_count} differing entries (after stripping work/Catalina)."
+
+	echo "${diff_output}"
+
+	echo "${diff_output}" | while read -r change
 	do
+		if [ -z "${change}" ]
+		then
+			continue
+		fi
+
 		if (echo "${change}" | grep "^Only in ${_RELEASE_DIR}" &>/dev/null)
 		then
 			local removed_file=${change#Only in }
@@ -392,20 +456,22 @@ function create_hotfix {
 			removed_file=$(echo "${removed_file}" | sed --expression "s#: #/#" | sed --expression "s#${_RELEASE_DIR}##")
 			removed_file=${removed_file#/}
 
-			echo "${removed_file}"
+			lc_log DEBUG "Detected entry only in reference release: ${removed_file}"
 
 			if [ ! -f "${_RELEASE_DIR}/${removed_file}" ]
 			then
-				echo "Skipping ${removed_file}."
+				lc_log DEBUG "Skipping ${removed_file} because it is not a regular file."
 
 				continue
 			fi
 
 			if in_hotfix_scope "${removed_file}"
 			then
-				echo "Removing ${removed_file}."
+				lc_log INFO "Recording removal of ${removed_file} in the hotfix."
 
 				transform_file_name "${removed_file}" >> "${_BUILD_DIR}"/hotfix/removed_files
+			else
+				lc_log DEBUG "Skipping removed ${removed_file} because it is outside the hotfix scope."
 			fi
 		elif (echo "${change}" | grep "^Only in ${_BUNDLES_DIR}" &>/dev/null)
 		then
@@ -414,18 +480,22 @@ function create_hotfix {
 			new_file=$(echo "${new_file}" | sed --expression "s#: #/#" | sed --expression "s#${_BUNDLES_DIR}##")
 			new_file=${new_file#/}
 
+			lc_log DEBUG "Detected entry only in built bundle: ${new_file}"
+
 			if [ ! -f "${_BUNDLES_DIR}/${new_file}" ]
 			then
-				echo "Skipping ${new_file}."
+				lc_log DEBUG "Skipping ${new_file} because it is not a regular file."
 
 				continue
 			fi
 
 			if in_hotfix_scope "${new_file}"
 			then
-				echo "Adding ${new_file}."
+				lc_log INFO "Adding new file ${new_file} to the hotfix."
 
 				add_file_to_hotfix "${new_file}"
+			else
+				lc_log DEBUG "Skipping new ${new_file} because it is outside the hotfix scope."
 			fi
 		else
 			local changed_file=${change#Files }
@@ -434,9 +504,11 @@ function create_hotfix {
 			changed_file=$(echo "${changed_file}" | sed --expression "s#${_BUNDLES_DIR}##")
 			changed_file=${changed_file#/}
 
+			lc_log DEBUG "Detected changed entry: ${changed_file}"
+
 			if [ ! -f "${_BUNDLES_DIR}/${changed_file}" ]
 			then
-				echo "Skipping ${changed_file}."
+				lc_log DEBUG "Skipping ${changed_file} because it is not a regular file."
 
 				continue
 			fi
@@ -447,11 +519,31 @@ function create_hotfix {
 				then
 					manage_jar "${changed_file}"
 				else
+					lc_log INFO "Adding changed non-JAR file ${changed_file} to the hotfix (no content-aware filter applies)."
+
 					add_file_to_hotfix "${changed_file}"
 				fi
+			else
+				lc_log DEBUG "Skipping changed ${changed_file} because it is outside the hotfix scope."
 			fi
 		fi
 	done
+
+	if [ -d "${_BUILD_DIR}/hotfix/binaries" ]
+	then
+		local added_count=$(find "${_BUILD_DIR}/hotfix/binaries" -type f | wc --lines)
+
+		lc_log INFO "Hotfix now contains ${added_count} added/changed files."
+	else
+		lc_log INFO "Hotfix has no added/changed files."
+	fi
+
+	if [ -f "${_BUILD_DIR}/hotfix/removed_files" ]
+	then
+		local removed_count=$(wc --lines < "${_BUILD_DIR}/hotfix/removed_files")
+
+		lc_log INFO "Hotfix records ${removed_count} removed files."
+	fi
 
 	rm --force --recursive "${_RELEASE_DIR}"
 }
@@ -486,11 +578,15 @@ function in_hotfix_scope {
 }
 
 function manage_jar {
+	lc_log INFO "Analyzing changed JAR ${1}."
+
 	if (compare_jars "${1}")
 	then
-		echo "Adding modified file ${1} to the hotfix."
+		lc_log INFO "Adding modified JAR ${1} to the hotfix."
 
 		add_file_to_hotfix "${1}"
+	else
+		lc_log INFO "Skipping JAR ${1} because compare_jars found no meaningful changes."
 	fi
 }
 
