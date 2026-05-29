@@ -107,6 +107,20 @@ function compare_jars {
 	local jar1=${_BUNDLES_DIR}/"${1}"
 	local jar2=${_RELEASE_DIR}/"${1}"
 
+	#
+	# TODO LPD-91517 Temporarily ignore these JARs. They only differ because of
+	# a JDK compiler change (zulu-17.0.18+8 vs the JDK that built the shipped
+	# release), not because of a source change.
+	#
+
+	if [[ "${1}" == *"com.liferay.bulk.rest.impl.jar" ]] ||
+	   [[ "${1}" == *"com.liferay.portal.search.elasticsearch8.impl.jar" ]]
+	then
+		lc_log INFO "Ignoring ${1} because it is temporarily excluded from the hotfix."
+
+		return 1
+	fi
+
 	function compare_property_in_packaged_file {
 		local jar1="${1}"
 		local jar2="${2}"
