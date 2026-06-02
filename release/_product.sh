@@ -34,13 +34,6 @@ function add_ckeditor_license {
 }
 
 function add_licensing {
-	if is_portal_release
-	then
-		lc_log INFO "The product is set to \"portal.\""
-
-		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
-	fi
-
 	if [ -e "${_BUILD_DIR}"/built.sha ] &&
 	   [ $(cat "${_BUILD_DIR}"/built.sha) == "${LIFERAY_RELEASE_GIT_REF}${LIFERAY_RELEASE_HOTFIX_TEST_SHA}" ]
 	then
@@ -81,13 +74,13 @@ function build_product {
 
 	lc_cd "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}"
 
-	ant deploy
+	$(_set_cpu_limit) ant deploy
 
-	ant deploy-portal-license-enterprise-app
+	$(_set_cpu_limit) ant deploy-portal-license-enterprise-app
 
 	lc_cd "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}/modules"
 
-	ant build-app-jar-release
+	$(_set_cpu_limit) ant build-app-jar-release
 
 	#
 	# Workaround until we implement LPS-182849.
@@ -132,13 +125,6 @@ function build_sql {
 }
 
 function clean_up_ignored_dxp_modules {
-	if is_portal_release
-	then
-		lc_log INFO "The product is set to \"portal.\""
-
-		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
-	fi
-
 	lc_cd "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}/modules"
 
 	(
@@ -220,7 +206,7 @@ function compile_product {
 
 	echo "baseline.jar.report.level=off" > "build.${USER}.properties"
 
-	ant clean compile
+	$(_set_cpu_limit) ant clean compile
 }
 
 function copy_copyright {
@@ -347,20 +333,13 @@ function get_java_specification_version {
 		echo "1.8"
 	fi
 
-	if (echo "${JAVA_HOME}" | grep --extended-regexp "jdk17|openjdk17" &> /dev/null)
+	if (echo "${JAVA_HOME}" | grep --extended-regexp "open-jdk-17|zulu-17" &> /dev/null)
 	then
 		echo "17"
 	fi
 }
 
 function obfuscate_licensing {
-	if is_portal_release
-	then
-		lc_log INFO "The product is set to \"portal.\""
-
-		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
-	fi
-
 	if [ -e "${_BUILD_DIR}"/built.sha ] &&
 	   [ $(cat "${_BUILD_DIR}"/built.sha) == "${LIFERAY_RELEASE_GIT_REF}${LIFERAY_RELEASE_HOTFIX_TEST_SHA}" ]
 	then
@@ -384,20 +363,14 @@ function obfuscate_licensing {
 function set_artifact_versions {
 	_ARTIFACT_VERSION="${1}"
 
-	if is_dxp_release
+	if is_u_release
 	then
-		if is_u_release
-		then
-			_ARTIFACT_VERSION=$(echo "${_ARTIFACT_VERSION}" | tr '-' '.')
-		fi
-	
-		if is_quarterly_release
-		then
-			_ARTIFACT_VERSION=$(echo "${_ARTIFACT_VERSION}" | sed "s/-lts//g")
-		fi
-	elif is_portal_release
+		_ARTIFACT_VERSION=$(echo "${_ARTIFACT_VERSION}" | tr '-' '.')
+	fi
+
+	if is_quarterly_release
 	then
-		_ARTIFACT_VERSION=$(echo "${_ARTIFACT_VERSION}" | sed "s/-ga[0-9]*//g")
+		_ARTIFACT_VERSION=$(echo "${_ARTIFACT_VERSION}" | sed "s/-lts//g")
 	fi
 
 	_ARTIFACT_RC_VERSION="${_ARTIFACT_VERSION}-${2}"
@@ -426,19 +399,10 @@ function set_product_version {
 
 			_add_lts_suffix_to_product_version
 		else
+			local bug_fix=$(lc_get_property release.properties "release.info.version.bug.fix[${branch}-private]")
 			local trivial=$(lc_get_property release.properties "release.info.version.trivial")
 
-			if is_dxp_release
-			then
-				local bug_fix=$(lc_get_property release.properties "release.info.version.bug.fix[${branch}-private]")
-
-				_PRODUCT_VERSION="${major_version}.${minor_version}.${bug_fix}-u${trivial}"
-			elif is_portal_release
-			then
-				local bug_fix=$(lc_get_property release.properties "release.info.version.bug.fix")
-
-				_PRODUCT_VERSION="${major_version}.${minor_version}.${bug_fix}.${trivial}-ga${trivial}"
-			fi
+			_PRODUCT_VERSION="${major_version}.${minor_version}.${bug_fix}-u${trivial}"
 		fi
 	else
 		_PRODUCT_VERSION="${1}"
@@ -627,4 +591,15 @@ function _is_free_tier_ignored_version {
 	else
 		echo "false"
 	fi
+}
+
+function _set_cpu_limit {
+	if [ "$(get_environment_type)" != "local" ]
+	then
+		return
+	fi
+
+	local max_cores_allowed=$(($(nproc) * 75 / 100))
+
+	echo "taskset --cpu-list 0-$((max_cores_allowed - 1)) nice --adjustment 10"
 }
