@@ -16,6 +16,8 @@ function main {
 		test_package_generate_release_properties_file
 		test_package_not_generate_javadocs
 		test_package_not_generate_release_properties_file
+		test_package_not_package_jakarta_transform_dependencies
+		test_package_package_jakarta_transform_dependencies
 		test_package_package_wars
 		test_package_portal_dependencies
 	fi
@@ -83,6 +85,46 @@ function test_package_not_generate_release_properties_file {
 	generate_release_properties_file &> /dev/null
 
 	assert_equals "${?}" "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+}
+
+function test_package_not_package_jakarta_transform_dependencies {
+	local original_projects_dir="${_PROJECTS_DIR}"
+
+	_PROJECTS_DIR="${_BUILD_DIR}/jakarta-transform-dependencies"
+
+	mkdir --parents "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}/modules/util/source-formatter/src/main/resources/dependencies"
+
+	echo "test" > "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}/modules/util/source-formatter/src/main/resources/dependencies/jakarta-transform-dependencies.txt"
+
+	_test_package_not_package_jakarta_transform_dependencies "2025.q4.1"
+	_test_package_not_package_jakarta_transform_dependencies "2026.q1.1-lts"
+	_test_package_not_package_jakarta_transform_dependencies "7.3.10-ga1"
+	_test_package_not_package_jakarta_transform_dependencies "7.4.13-u149"
+
+	rm --force --recursive "${_PROJECTS_DIR}"
+
+	_test_package_not_package_jakarta_transform_dependencies "2026.q1.0-lts"
+	_test_package_not_package_jakarta_transform_dependencies "2026.q3.0"
+
+	_PROJECTS_DIR="${original_projects_dir}"
+}
+
+function test_package_package_jakarta_transform_dependencies {
+	local original_projects_dir="${_PROJECTS_DIR}"
+
+	_PROJECTS_DIR="${_BUILD_DIR}/jakarta-transform-dependencies"
+
+	mkdir --parents "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}/modules/util/source-formatter/src/main/resources/dependencies"
+
+	echo "test" > "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}/modules/util/source-formatter/src/main/resources/dependencies/jakarta-transform-dependencies.txt"
+
+	_test_package_package_jakarta_transform_dependencies "2025.q4.0"
+	_test_package_package_jakarta_transform_dependencies "2026.q1.0-lts"
+	_test_package_package_jakarta_transform_dependencies "2026.q3.0"
+
+	rm --force --recursive "${_PROJECTS_DIR}"
+
+	_PROJECTS_DIR="${original_projects_dir}"
 }
 
 function test_package_package_wars {
@@ -195,6 +237,32 @@ function _test_package_not_generate_javadocs {
 	_generate_javadocs &> /dev/null
 
 	assert_equals "${?}" "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+}
+
+function _test_package_not_package_jakarta_transform_dependencies {
+	_PRODUCT_VERSION="${1}"
+
+	package_jakarta_transform_dependencies &> /dev/null
+
+	assert_equals \
+		"${?}" \
+		"${LIFERAY_COMMON_EXIT_CODE_SKIPPED}" \
+		"$(ls "${_BUILD_DIR}/release" | grep --count "jakarta-transform-dependencies")" \
+		"0"
+}
+
+function _test_package_package_jakarta_transform_dependencies {
+	_PRODUCT_VERSION="${1}"
+
+	package_jakarta_transform_dependencies &> /dev/null
+
+	assert_equals \
+		"${?}" \
+		"${LIFERAY_COMMON_EXIT_CODE_OK}" \
+		"$(ls "${_BUILD_DIR}/release" | grep --count "jakarta-transform-dependencies")" \
+		"1"
+
+	rm --force "${_BUILD_DIR}/release/jakarta-transform-dependencies.txt"
 }
 
 main "${@}"
