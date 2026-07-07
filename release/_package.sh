@@ -107,6 +107,26 @@ function package_boms {
 	rm --force .touch
 }
 
+function package_jakarta_transform_dependencies {
+	if ! is_first_quarterly_release
+	then
+	lc_log INFO "The jakarta transform dependencies should not be packaged in the ${_PRODUCT_VERSION} release."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+
+	local jakarta_transform_dependencies_file="${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}/modules/util/source-formatter/src/main/resources/dependencies/jakarta-transform-dependencies.txt"
+
+	if [ ! -f "${jakarta_transform_dependencies_file}" ]
+	then
+		lc_log INFO "The file jakarta-transform-dependencies.txt does not exist."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+
+	cp "${jakarta_transform_dependencies_file}" "${_BUILD_DIR}/release"
+}
+
 function package_release {
 	rm --force --recursive "${_BUILD_DIR}/release"
 
