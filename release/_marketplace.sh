@@ -5,13 +5,6 @@ source ../_release_common.sh
 source ./_product.sh
 
 function check_liferay_marketplace_products_compatibility {
-	if [ "${LIFERAY_RELEASE_DEVELOPER_MODE}" == "true" ]
-	then
-		lc_log INFO "Skipping the Liferay Marketplace products compatibility check because LIFERAY_RELEASE_DEVELOPER_MODE is set to \"true\"."
-
-		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
-	fi
-
 	if ! is_first_quarterly_release
 	then
 		lc_log INFO "The compatibility of Liferay Marketplace products should not be checked on the ${_PRODUCT_VERSION} release."
