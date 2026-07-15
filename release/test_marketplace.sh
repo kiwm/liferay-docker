@@ -14,6 +14,7 @@ function main {
 		"${1}"
 	else
 		test_marketplace_check_liferay_marketplace_products_compatibility
+		test_marketplace_deploy_punchout2go_activation_key
 		test_marketplace_get_latest_product_virtual_settings_file_entry_json_index
 	fi
 }
@@ -71,6 +72,33 @@ function test_marketplace_check_liferay_marketplace_products_compatibility {
 	assert_equals \
 		"${?}" "0" \
 		"$(ls -1 "${_BUNDLES_DIR}/osgi/modules/liferaycommerceminium4globalcss.zip" | wc --lines)" "1"
+}
+
+function test_marketplace_deploy_punchout2go_activation_key {
+	local activation_key_year=$(date +%Y)
+
+	if [[ "$(date +%-m)" -lt 4 ]]
+	then
+		activation_key_year=$((activation_key_year - 1))
+	fi
+
+	local activation_key_directory=$(mktemp --directory)
+	local activation_key_file="${activation_key_directory}/activation-key-punchout2go-${activation_key_year}-04-01.xml"
+
+	echo "<license/>" > "${activation_key_file}"
+
+	export "LIFERAY_PUNCHOUT2GO_ACTIVATION_KEY_${activation_key_year}=${activation_key_file}"
+
+	_deploy_punchout2go_activation_key &> /dev/null
+
+	assert_equals \
+		"${?}" "0" \
+		"$(ls -1 "${_BUNDLES_DIR}/deploy/activation-key-punchout2go-${activation_key_year}-04-01.xml" | wc --lines)" "1"
+
+	rm --force "${_BUNDLES_DIR}/deploy/activation-key-punchout2go-${activation_key_year}-04-01.xml"
+	rm --force --recursive "${activation_key_directory}"
+
+	unset "LIFERAY_PUNCHOUT2GO_ACTIVATION_KEY_${activation_key_year}"
 }
 
 function test_marketplace_get_latest_product_virtual_settings_file_entry_json_index {
