@@ -97,6 +97,18 @@ function check_liferay_marketplace_products_compatibility {
 
 			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
+
+		if [ "${liferay_marketplace_product_name}" == "punchout" ]
+		then
+			_check_punchout2go_activation_key
+
+			if [[ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]]
+			then
+				stop_tomcat &> /dev/null
+
+				return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+			fi
+		fi
 	done
 
 	stop_tomcat &> /dev/null
@@ -167,6 +179,19 @@ function _check_liferay_marketplace_product_compatibility {
 
 		_update_product_supported_versions "${product_external_reference_code}" "${product_name}"
 	fi
+}
+
+function _check_punchout2go_activation_key {
+	if grep --quiet "Liferay Commerce Connector to PunchOut2Go license validation passed" "${_LIFERAY_MARKETPLACE_PRODUCTS_DEPLOYMENT_LOG_FILE}"
+	then
+		lc_log INFO "The Punchout2Go activation key was processed successfully."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_OK}"
+	fi
+
+	lc_log ERROR "Unable to process the Punchout2Go activation key."
+
+	return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 }
 
 function _deploy_liferay_marketplace_product_zip_file {
