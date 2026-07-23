@@ -14,6 +14,7 @@ function main {
 		"${1}"
 	else
 		test_marketplace_check_liferay_marketplace_products_compatibility
+		test_marketplace_check_punchout2go_activation_key
 		test_marketplace_deploy_punchout2go_activation_key
 		test_marketplace_get_latest_product_virtual_settings_file_entry_json_index
 	fi
@@ -74,6 +75,13 @@ function test_marketplace_check_liferay_marketplace_products_compatibility {
 		"$(ls -1 "${_BUNDLES_DIR}/osgi/modules/liferaycommerceminium4globalcss.zip" | wc --lines)" "1"
 }
 
+function test_marketplace_check_punchout2go_activation_key {
+	_test_marketplace_check_punchout2go_activation_key \
+		"Liferay Commerce Connector to PunchOut2Go license validation passed" "0"
+	_test_marketplace_check_punchout2go_activation_key \
+		"Unable to resolve com.liferay.commerce.punchout.api: This application does not have a valid license" "1"
+}
+
 function test_marketplace_deploy_punchout2go_activation_key {
 	local activation_key_year=$(date +%Y)
 
@@ -105,6 +113,22 @@ function test_marketplace_get_latest_product_virtual_settings_file_entry_json_in
 	_test_marketplace_get_latest_product_virtual_settings_file_entry_json_index "2026.Q2" "2"
 	_test_marketplace_get_latest_product_virtual_settings_file_entry_json_index "7.4" "2"
 	_test_marketplace_get_latest_product_virtual_settings_file_entry_json_index "empty_version" ""
+}
+
+function _test_marketplace_check_punchout2go_activation_key {
+	local deployment_log_file=$(mktemp)
+
+	export _LIFERAY_MARKETPLACE_PRODUCTS_DEPLOYMENT_LOG_FILE=${deployment_log_file}
+
+	echo "${1}" > "${deployment_log_file}"
+
+	_check_punchout2go_activation_key &> /dev/null
+
+	assert_equals "${?}" "${2}"
+
+	rm --force "${deployment_log_file}"
+
+	unset _LIFERAY_MARKETPLACE_PRODUCTS_DEPLOYMENT_LOG_FILE
 }
 
 function _test_marketplace_get_latest_product_virtual_settings_file_entry_json_index {
