@@ -29,7 +29,10 @@ function configure_structured_logging {
 	cp "${structured_logging_dir}/cloud-native-layout.json" "${meta_inf_dir}"
 	cp "${structured_logging_dir}/portal-log4j-ext.xml" "${meta_inf_dir}"
 
-	sed --expression "s@^\([[:space:]]*java\.util\.logging\.ConsoleHandler\.formatter[[:space:]]*=[[:space:]]*\).*@\1org.apache.juli.JsonFormatter@" --in-place /opt/liferay/tomcat/conf/logging.properties
+	sed \
+		--expression "s@^\([[:space:]]*java\.util\.logging\.ConsoleHandler\.formatter[[:space:]]*=[[:space:]]*\).*@\1org.apache.juli.JsonFormatter@" \
+		--in-place \
+		/opt/liferay/tomcat/conf/logging.properties
 }
 
 function main {
