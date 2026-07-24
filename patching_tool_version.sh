@@ -24,7 +24,7 @@ function get_full_version {
 	elif [ "${1}" == "3.0" ]
 	then
 		echo "$(lc_curl https://releases.liferay.com/tools/patching-tool/LATEST-3.0.txt)"
-	elif [ "${1}" == "4.0" ]
+	elif [[ "${1}" == 4.* ]]
 	then
 		echo "$(lc_curl https://releases.liferay.com/tools/patching-tool/LATEST-4.0.txt)"
 	else
