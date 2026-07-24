@@ -251,6 +251,54 @@ function pid_8080 {
 	echo "${pid##p}"
 }
 
+function prepare_structured_logging {
+	local shielded_container_lib_dir="${TEMP_DIR}/liferay/tomcat/webapps/ROOT/WEB-INF/shielded-container-lib"
+
+	if [ -n "$(find "${shielded_container_lib_dir}" -maxdepth 1 -name "log4j-layout-template-json-*.jar" -print -quit 2> /dev/null)" ]
+	then
+		return
+	fi
+
+	local log4j_core_jar=$( \
+		find "${shielded_container_lib_dir}" \
+			-maxdepth 1 \
+			\( -name "log4j-core.jar" -o -name "log4j-core-[0-9]*.jar" \) \
+			-print \
+			-quit 2> /dev/null)
+
+	if [ -z "${log4j_core_jar}" ]
+	then
+		echo "Skipping structured logging setup because log4j-core is not present."
+
+		return
+	fi
+
+	local log4j_version=$( \
+		unzip -p "${log4j_core_jar}" META-INF/MANIFEST.MF | \
+		grep --max-count=1 "Implementation-Version" | \
+		cut --delimiter=' ' --fields=2 | \
+		tr --delete '\r')
+
+	if [ -z "${log4j_version}" ]
+	then
+		echo "Skipping structured logging setup because the log4j-core version cannot be determined."
+
+		return
+	fi
+
+	echo ""
+	echo "Downloading log4j-layout-template-json-${log4j_version}.jar."
+	echo ""
+
+	curl \
+		--fail \
+		--location \
+		--output "${shielded_container_lib_dir}/log4j-layout-template-json-${log4j_version}.jar" \
+		--show-error \
+		--silent \
+		"https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-layout-template-json/${log4j_version}/log4j-layout-template-json-${log4j_version}.jar" || exit 2
+}
+
 function prepare_tomcat {
 	local liferay_tomcat_version=$(get_tomcat_version "${TEMP_DIR}/liferay")
 

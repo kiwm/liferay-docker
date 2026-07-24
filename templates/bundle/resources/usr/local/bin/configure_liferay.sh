@@ -3,6 +3,38 @@
 source /usr/local/bin/_liferay_bundle_common.sh
 source /usr/local/bin/_liferay_common.sh
 
+function configure_structured_logging {
+	if [ "${LIFERAY_STRUCTURED_LOGGING_ENABLED}" != "true" ]
+	then
+		return
+	fi
+
+	local structured_logging_dir="/usr/local/liferay/structured-logging"
+
+	if [ ! -f "${structured_logging_dir}/portal-log4j-ext.xml" ]
+	then
+		echo "[LIFERAY] Structured logging is enabled but ${structured_logging_dir} is missing. Rebuild the image to include the structured logging configuration."
+		echo ""
+
+		return
+	fi
+
+	echo "[LIFERAY] Enabling structured JSON logging."
+	echo ""
+
+	local meta_inf_dir="/opt/liferay/tomcat/webapps/ROOT/WEB-INF/classes/META-INF"
+
+	mkdir --parents "${meta_inf_dir}"
+
+	cp "${structured_logging_dir}/cloud-native-layout.json" "${meta_inf_dir}"
+	cp "${structured_logging_dir}/portal-log4j-ext.xml" "${meta_inf_dir}"
+
+	sed \
+		--expression "s@^\([[:space:]]*java\.util\.logging\.ConsoleHandler\.formatter[[:space:]]*=[[:space:]]*\).*@\1org.apache.juli.JsonFormatter@" \
+		--in-place \
+		/opt/liferay/tomcat/conf/logging.properties
+}
+
 function main {
 	if [ "${JAVA_VERSION}" == "zulu21" ] && [ ! -e "/opt/liferay/data/.elasticsearch.initialized" ]
 	then
@@ -118,6 +150,8 @@ function main {
 	then
 		sed --expression "s/<Engine name=\"Catalina\" defaultHost=\"localhost\">/<Engine defaultHost=\"localhost\" jvmRoute=\"${LIFERAY_TOMCAT_JVM_ROUTE}\" name=\"Catalina\">/" --in-place /opt/liferay/tomcat/conf/server.xml
 	fi
+
+	configure_structured_logging
 }
 
 function slim {

@@ -257,6 +257,8 @@ function main {
 
 	prepare_tomcat
 
+	prepare_structured_logging
+
 	if [ "${LIFERAY_DOCKER_SLIM}" == "true" ]
 	then
 		prepare_slim_image

@@ -54,7 +54,7 @@ function check_usage {
 		exit 1
 	fi
 
-	check_utils curl docker java rsync
+	check_utils curl docker java rsync unzip
 }
 
 function main {
@@ -65,6 +65,8 @@ function main {
 	prepare_temp_directory "${@}"
 
 	prepare_tomcat "${@}"
+
+	prepare_structured_logging
 
 	build_docker_image "${@}"
 
