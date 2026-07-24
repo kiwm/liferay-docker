@@ -259,9 +259,12 @@ function prepare_structured_logging {
 		return
 	fi
 
-	local log4j_core_jar
-
-	log4j_core_jar=$(find "${shielded_container_lib_dir}" -maxdepth 1 \( -name "log4j-core.jar" -o -name "log4j-core-[0-9]*.jar" \) -print -quit 2> /dev/null)
+	local log4j_core_jar=$( \
+		find "${shielded_container_lib_dir}" \
+			-maxdepth 1 \
+			\( -name "log4j-core.jar" -o -name "log4j-core-[0-9]*.jar" \) \
+			-print \
+			-quit 2> /dev/null)
 
 	if [ -z "${log4j_core_jar}" ]
 	then
@@ -270,9 +273,7 @@ function prepare_structured_logging {
 		return
 	fi
 
-	local log4j_version
-
-	log4j_version=$( \
+	local log4j_version=$( \
 		unzip -p "${log4j_core_jar}" META-INF/MANIFEST.MF | \
 		grep --max-count=1 "Implementation-Version" | \
 		cut --delimiter=' ' --fields=2 | \
