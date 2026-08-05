@@ -236,7 +236,7 @@ function update_release_tool_repository {
 
 	git reset --hard && git clean -dfx
 
-	local release_tool_sha=$(lc_get_property "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}/release.properties" "release.tool.sha")
+	local release_tool_sha="2f6afe29ad50721264078bcc2489ab1850bcc373"
 
 	if [ ! -n "${release_tool_sha}" ]
 	then
@@ -253,13 +253,18 @@ function update_release_tool_repository {
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 	fi
 
-	git fetch --force --prune upstream
+	if ! git remote get-url tinatian &> /dev/null
+	then
+		git remote add tinatian git@github.com:tinatian/liferay-release-tool-ee.git
+	fi
+
+	git fetch --force --prune tinatian
 
 	git fetch \
 		--force \
 		--prune \
 		--tags \
-		upstream
+		tinatian
 
 	git checkout master
 
