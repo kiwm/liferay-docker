@@ -10,12 +10,17 @@ function set_jdk_version_and_parameters {
 	then
 		if [[ "$(get_release_year)" -ge 2025 ]]
 		then
-			jdk_version="open-jdk-17.0.2"
+			jdk_version="openjdk-17.0.2"
 		fi
 
 		if is_equals_or_later_product_version_than "2026.q1.4-lts"
 		then
 			jdk_version="zulu-17.0.18+8"
+		fi
+
+		if is_equals_or_later_product_version_than "2026.q4.0"
+		then
+			jdk_version="openjdk-21.0.2"
 		fi
 
 		for release_version in 2024.q1.26-lts 2024.q1.27-lts 2025.q1.23-lts 2025.q1.24-lts
@@ -30,7 +35,7 @@ function set_jdk_version_and_parameters {
 	if [ "$(get_release_version)" == "7.4.13" ] &&
 	   [[ "$(get_release_version_trivial)" -ge 132 ]]
 	then
-		jdk_version="open-jdk-17.0.2"
+		jdk_version="openjdk-17.0.2"
 	fi
 
 	local java_home=$(_resolve_jdk_install "${jdk_version}")
@@ -55,12 +60,12 @@ function set_jdk_version_and_parameters {
 
 	lc_log INFO "Java release:\n $(cat "${JAVA_HOME}/release")"
 
-	if [[ "${jdk_version}" == *"8"* ]] && [[ ! "${JAVA_OPTS}" =~ "-XX:MaxPermSize" ]]
+	if [ "${jdk_version}" == "zulu8" ] && [[ ! "${JAVA_OPTS}" =~ "-XX:MaxPermSize" ]]
 	then
 		JAVA_OPTS="${JAVA_OPTS} -XX:MaxPermSize=256m"
 	fi
 
-	if [[ "${jdk_version}" == *"17"* ]]
+	if [ "${jdk_version}" != "zulu8" ]
 	then
 		JAVA_OPTS=$(echo "${JAVA_OPTS}" | sed --expression "s/-XX:MaxPermSize=[^ ]*//g")
 	fi
@@ -171,11 +176,16 @@ function _get_jdk_download_url {
 	local arch=${1}
 	local jdk_version=${2}
 
-	if [[ "${jdk_version}" == open-jdk-17* ]]
+	if [ "${jdk_version}" == "openjdk-17.0.2" ]
 	then
-		local java_version=$(echo "${jdk_version}" | sed --regexp-extended --expression "s/^open-jdk-//")
+		echo "https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/openjdk-17.0.2_linux-${arch}_bin.tar.gz"
 
-		echo "https://download.oracle.com/java/$(echo "${java_version}" | cut --delimiter='.' --fields=1)/archive/jdk-${java_version}_linux-${arch}_bin.tar.gz"
+		return "${LIFERAY_COMMON_EXIT_CODE_OK}"
+	fi
+
+	if [ "${jdk_version}" == "openjdk-21.0.2" ]
+	then
+		echo "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-${arch}_bin.tar.gz"
 
 		return "${LIFERAY_COMMON_EXIT_CODE_OK}"
 	fi
