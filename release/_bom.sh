@@ -49,6 +49,13 @@ function copy_tld {
 }
 
 function generate_api_jars {
+	if is_cms_standalone_release
+	then
+		lc_log INFO "BOMs should not be generated for CMS standalone releases."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+
 	mkdir --parents "${_BUILD_DIR}/boms"
 
 	lc_cd "${_BUILD_DIR}/boms"
@@ -201,6 +208,13 @@ function generate_api_jars {
 }
 
 function generate_api_source_jar {
+	if is_cms_standalone_release
+	then
+		lc_log INFO "BOMs should not be generated for CMS standalone releases."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+
 	lc_cd "${_PROJECTS_DIR}/${LIFERAY_PORTAL_REPOSITORY_NAME}"
 
 	_copy_source_package ./portal-kernel/src/com/liferay
@@ -242,6 +256,13 @@ function generate_api_source_jar {
 }
 
 function generate_distro_jar {
+	if is_cms_standalone_release
+	then
+		lc_log INFO "BOMs should not be generated for CMS standalone releases."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+
 	if [ ! -e "${_BUNDLES_DIR}/osgi/modules/biz.aQute.remote.agent-6.4.0.jar" ]
 	then
 		lc_download "https://repo1.maven.org/maven2/biz/aQute/bnd/biz.aQute.remote.agent/6.4.0/biz.aQute.remote.agent-6.4.0.jar" "${_BUNDLES_DIR}/deploy/biz.aQute.remote.agent-6.4.0.jar"
@@ -555,6 +576,13 @@ function generate_pom_release_distro {
 }
 
 function generate_poms {
+	if is_cms_standalone_release
+	then
+		lc_log INFO "BOMs should not be generated for CMS standalone releases."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
+
 	mkdir --parents "${_BUILD_DIR}/boms"
 
 	lc_cd "${_BUILD_DIR}/boms"
