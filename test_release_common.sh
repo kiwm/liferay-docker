@@ -23,10 +23,12 @@ function main {
 		test_release_common_get_release_version_trivial
 		test_release_common_get_release_year
 		test_release_common_get_target_platform_version
+		test_release_common_get_today
 		test_release_common_is_7_3_release
 		test_release_common_is_7_3_u_release
 		test_release_common_is_7_4_release
 		test_release_common_is_7_4_u_release
+		test_release_common_is_cms_standalone_release
 		test_release_common_is_early_product_version_than
 		test_release_common_is_equals_or_later_product_version_than
 		test_release_common_is_first_quarterly_release
@@ -51,6 +53,7 @@ function set_up {
 }
 
 function tear_down {
+	unset LIFERAY_CMS_STANDALONE_RELEASE
 	unset LIFERAY_RELEASE_PRODUCT_NAME
 	unset LIFERAY_RELEASE_TEST_MODE
 	unset _ACTUAL_PRODUCT_VERSION
@@ -150,6 +153,11 @@ function test_release_common_get_target_platform_version {
 	_test_release_common_get_target_platform_version "7.4.3.129-ga129" "7.4.3.129"
 }
 
+function test_release_common_get_today {
+	_test_release_common_get_today "2026-08-13" "2026-08-13"
+	_test_release_common_get_today "" "$(date +%Y-%m-%d)"
+}
+
 function test_release_common_is_7_3_release {
 	_test_release_common_is_7_3_release "7.3.10-u36" "0"
 	_test_release_common_is_7_3_release "7.3.7-ga8" "0"
@@ -177,6 +185,19 @@ function test_release_common_is_7_4_u_release {
 	_test_release_common_is_7_4_u_release "7.4.0-ga1" "1"
 	_test_release_common_is_7_4_u_release "7.4.13-u134" "0"
 	_test_release_common_is_7_4_u_release "7.4.13-u149-ai-hub" "0"
+}
+
+function test_release_common_is_cms_standalone_release {
+	_test_release_common_is_cms_standalone_release "2026.q4.0" "1"
+	_test_release_common_is_cms_standalone_release "7.4.13-u152" "1"
+	_test_release_common_is_cms_standalone_release "7.4.13-u152-ai-hub" "1"
+	_test_release_common_is_cms_standalone_release "7.4.13-u152-cms-standalone" "0"
+
+	LIFERAY_CMS_STANDALONE_RELEASE="true"
+
+	_test_release_common_is_cms_standalone_release "7.4.13-u152" "0"
+
+	unset LIFERAY_CMS_STANDALONE_RELEASE
 }
 
 function test_release_common_is_early_product_version_than {
@@ -292,9 +313,13 @@ function test_release_common_set_latest_quarterly_product_versions {
 }
 
 function _test_release_common_get_due_date {
+	LIFERAY_RELEASE_TEST_DATE=${2}
+
 	assert_equals \
-		"$(get_due_date "${1}" "${2}")" \
+		"$(get_due_date "${1}")" \
 		"${3}"
+
+	unset LIFERAY_RELEASE_TEST_DATE
 }
 
 function _test_release_common_get_latest_product_version {
@@ -361,6 +386,14 @@ function _test_release_common_get_target_platform_version {
 	assert_equals "$(get_target_platform_version)" "${2}"
 }
 
+function _test_release_common_get_today {
+	LIFERAY_RELEASE_TEST_DATE=${1}
+
+	assert_equals "$(get_today)" "${2}"
+
+	unset LIFERAY_RELEASE_TEST_DATE
+}
+
 function _test_release_common_is_7_3_release {
 	is_7_3_release "${1}"
 
@@ -381,6 +414,12 @@ function _test_release_common_is_7_4_release {
 
 function _test_release_common_is_7_4_u_release {
 	is_7_4_u_release "${1}"
+
+	assert_equals "${?}" "${2}"
+}
+
+function _test_release_common_is_cms_standalone_release {
+	is_cms_standalone_release "${1}"
 
 	assert_equals "${?}" "${2}"
 }
