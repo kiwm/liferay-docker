@@ -65,6 +65,11 @@ function main {
 
 		rm --force --recursive "${workspace_dir}/downloads"
 		rm --force --recursive "${workspace_dir}/release/release-data"
+	elif [ "${current_job}" == "backport-release-translations" ]
+	then
+		rm --force --recursive "${workspace_dir}/crowdin/logs"
+
+		_clean_up_repository "liferay-portal-ee"
 	elif [ "${current_job}" == "crowdin-sync" ]
 	then
 		rm --force --recursive "${workspace_dir}/crowdin/logs"
