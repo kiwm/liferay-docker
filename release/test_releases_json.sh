@@ -281,7 +281,7 @@ function _test_releases_json_get_supported_product_group_versions {
 function _test_releases_json_is_supported_product_version {
 	LIFERAY_RELEASE_TEST_DATE=${1}
 
-	_is_supported_product_version "${2}"
+	is_supported_product_version "${2}"
 
 	assert_equals "${?}" "${3}"
 }
