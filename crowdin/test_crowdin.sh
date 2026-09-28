@@ -16,7 +16,6 @@ function set_up {
 	export _LIFERAY_PORTAL_REPOSITORY_NAME="liferay-portal"
 	export _PROJECTS_DIR=$(mktemp --directory)
 	export _TEST_DEPENDENCIES_DIR="${_CROWDIN_DIR}/test-dependencies"
-	export _TRANSLATION_FILE_REGEX="(Language|bundle)(_[a-zA-Z].*)?\.properties$"
 
 	mkdir "${_PROJECTS_DIR}/${_LIFERAY_PORTAL_REPOSITORY_NAME}"
 
@@ -54,7 +53,7 @@ function test_crowdin_merge_and_commit_translations {
 
 	cp "${_TEST_DEPENDENCIES_DIR}/actual/Language_crowdin.properties" "${translation_file}"
 
-	merge_and_commit_translations &> /dev/null
+	merge_and_commit_translations "LPD-91206 Update Translations" &> /dev/null
 
 	assert_equals "${translation_file}" "${_TEST_DEPENDENCIES_DIR}/expected/Language.properties"
 }
