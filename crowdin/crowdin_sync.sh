@@ -3,36 +3,7 @@
 source ../_gh_pr.sh
 source ../_liferay_common.sh
 source ../release/_git.sh
-
-function check_translations_sync {
-	lc_cd "${_PROJECTS_DIR}/liferay-portal"
-
-	if ! git remote get-url brianchandotcom &> /dev/null
-	then
-		git remote add brianchandotcom "git@github.com:brianchandotcom/liferay-portal.git"
-	fi
-
-	git fetch --force brianchandotcom "master:refs/remotes/brianchandotcom/master"
-
-	if [[ "${?}" -ne 0 ]]
-	then
-		lc_log ERROR "Unable to fetch master from brianchandotcom/liferay-portal."
-
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-
-	if [ -n "$( \
-		git log \
-			--format="%H" \
-			--grep="LPD-91206 Update Translations" \
-			--max-count=1 \
-			master..brianchandotcom/master)" ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
-	fi
-
-	_TRANSLATIONS_SYNCED=true
-}
+source ./_crowdin_common.sh
 
 function check_usage {
 	if [ -z "${CROWDIN_API_TOKEN}" ] ||
@@ -53,8 +24,6 @@ function check_usage {
 	then
 		_PROJECTS_DIR=${_CROWDIN_DIR}
 	fi
-
-	_TRANSLATION_FILE_REGEX="(Language|bundle)(_[a-zA-Z].*)?\.properties$"
 }
 
 function download_translations {
@@ -94,9 +63,12 @@ function main {
 		lc_wait
 	fi
 
-	lc_time_run update_portal_repository
+	lc_time_run update_translations_repository "master" "liferay-portal"
 
-	lc_time_run check_translations_sync
+	lc_time_run check_translations_sync \
+		"master" \
+		"LPD-91206 Update Translations" \
+		"liferay-portal"
 
 	if [ "${_TRANSLATIONS_SYNCED}" != "true" ]
 	then
@@ -115,7 +87,7 @@ function main {
 
 	lc_time_run download_translations
 
-	lc_time_run merge_and_commit_translations
+	lc_time_run merge_and_commit_translations "LPD-91206 Update Translations"
 
 	if [ "${_CREATE_PULL_REQUEST}" != "true" ]
 	then
@@ -137,53 +109,19 @@ function main {
 		"LPD-91206 Update Translations"
 }
 
-function merge_and_commit_translations {
-	local changed_files=$(_get_changed_files)
-
-	if [ -z "${changed_files}" ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
-	fi
-
-	lc_log INFO "Merging approved translations into translation files."
-
-	local translation_file
-
-	while IFS= read -r translation_file
-	do
-		_merge_translation_file "${translation_file}"
-	done <<< "${changed_files}"
-
-	local merged_files=$(_get_changed_files)
-
-	if [ -z "${merged_files}" ]
-	then
-		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
-	fi
-
-	commit_changes "${merged_files}" "LPD-91206 Update Translations"
-
-	_CREATE_PULL_REQUEST=true
-}
-
 function normalize_existing_translations {
 	lc_cd "${_PROJECTS_DIR}/liferay-portal"
 
 	lc_log INFO "Running Lang Builder to normalize the existing translations."
 
-	local translation_files=$( \
-		yq ".files[].source" "${_CROWDIN_DIR}/crowdin.yml" | \
-		sed --expression "s#^/##" --expression "s#^#:(glob)#" | \
-		xargs --no-run-if-empty git ls-files --)
-
-	_run_lang_builder_on_files "${translation_files}"
+	_run_lang_builder_on_files "$(get_translation_source_files)"
 
 	if [[ "${?}" -ne 0 ]]
 	then
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
 
-	local normalized_translation_files=$(_get_changed_files)
+	local normalized_translation_files=$(get_changed_translation_files)
 
 	if [ -z "${normalized_translation_files}" ]
 	then
@@ -200,7 +138,7 @@ function normalize_synced_translations {
 
 	local changed_translation_files=$( \
 		git show --name-only --pretty=format: HEAD | \
-		grep --extended-regexp "${_TRANSLATION_FILE_REGEX}")
+		filter_translation_files)
 
 	if [ -z "${changed_translation_files}" ]
 	then
@@ -216,7 +154,7 @@ function normalize_synced_translations {
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
 
-	local normalized_translation_files=$(_get_changed_files)
+	local normalized_translation_files=$(get_changed_translation_files)
 
 	if [ -z "${normalized_translation_files}" ]
 	then
@@ -281,34 +219,6 @@ function set_up_lang_builder {
 	fi
 }
 
-function update_portal_repository {
-	trap 'return "${LIFERAY_COMMON_EXIT_CODE_BAD}"' ERR
-
-	lc_cd "${_PROJECTS_DIR}/liferay-portal"
-
-	git checkout master --force
-
-	git clean -dfx --exclude "tools/gradle-*-bin.zip"
-
-	if ! git remote get-url upstream &> /dev/null
-	then
-		git remote add upstream "git@github.com:liferay/liferay-portal.git"
-	fi
-
-	git fetch upstream "master:refs/remotes/upstream/master"
-
-	git reset --hard upstream/master
-
-	if ! git remote get-url liferay-release &> /dev/null
-	then
-		git remote add liferay-release "git@github.com:liferay-release/liferay-portal.git"
-	fi
-
-	git push liferay-release master
-
-	git log --max-count=1
-}
-
 function upload_sources {
 	lc_log INFO "Uploading source files to Crowdin."
 
@@ -324,57 +234,6 @@ function upload_sources {
 
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
-}
-
-function _apply_crowdin_translations {
-	local crowdin_translation_file=${1}
-	local head_translation_file=${2}
-
-	awk \
-		-v crowdin_translation_file="${crowdin_translation_file}" \
-		-v head_translation_file="${head_translation_file}" '
-		function is_translation(line) {
-			if (line ~ /^[#!]/ || line !~ /=/) {
-				return 0
-			}
-
-			return 1
-		}
-
-		function parse_key(line) {
-			sub(/=.*/, "", line)
-
-			return line
-		}
-
-		FILENAME == crowdin_translation_file {
-			if (is_translation($0)) {
-				key = parse_key($0)
-
-				crowdin_translations[key] = $0
-			}
-		}
-
-		FILENAME == head_translation_file {
-			if (!is_translation($0)) {
-				print
-
-				next
-			}
-
-			key = parse_key($0)
-
-			if (key in crowdin_translations) {
-				print crowdin_translations[key]
-			} else {
-				print
-			}
-		}
-	' "${crowdin_translation_file}" "${head_translation_file}"
-}
-
-function _get_changed_files {
-	git diff --name-only | grep --extended-regexp "${_TRANSLATION_FILE_REGEX}"
 }
 
 function _get_crowdin_data {
@@ -485,41 +344,6 @@ function _get_crowdin_translation_id {
 			return
 		fi
 	done <<< "$(echo "${response}" | jq --compact-output ".data[]")"
-}
-
-function _has_new_translations {
-	local head_translation_file=${1}
-	local merged_translation_file=${2}
-
-	! diff --brief \
-		<(grep "=" "${head_translation_file}") \
-		<(grep "=" "${merged_translation_file}") &> /dev/null
-}
-
-function _merge_translation_file {
-	local crowdin_translation_file=${1}
-
-	local head_translation_file=$(mktemp)
-
-	git show "HEAD:${crowdin_translation_file}" > "${head_translation_file}"
-
-	local merged_translation_file=$(mktemp)
-
-	_apply_crowdin_translations "${crowdin_translation_file}" "${head_translation_file}" > "${merged_translation_file}"
-
-	if [ -n "$(tail --bytes=1 "${head_translation_file}")" ]
-	then
-		truncate --size=-1 "${merged_translation_file}"
-	fi
-
-	if _has_new_translations "${head_translation_file}" "${merged_translation_file}"
-	then
-		mv "${merged_translation_file}" "${crowdin_translation_file}"
-	else
-		cp "${head_translation_file}" "${crowdin_translation_file}"
-	fi
-
-	rm --force "${head_translation_file}" "${merged_translation_file}"
 }
 
 function _post_crowdin_data {
