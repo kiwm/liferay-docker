@@ -441,6 +441,13 @@ function _compare_product_versions {
 		then
 			return 1
 		fi
+	else
+		return 1
+	fi
+
+	if [ "${2}" == "equals_or_later" ]
+	then
+		return 0
 	fi
 
 	return 1

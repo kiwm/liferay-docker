@@ -206,6 +206,7 @@ function test_release_common_is_early_product_version_than {
 	_test_release_common_is_early_product_version_than "2024.q4.7" "2025.q1.0-lts" "0"
 	_test_release_common_is_early_product_version_than "2025.q1.0-lts" "2025.q1.1-lts" "0"
 	_test_release_common_is_early_product_version_than "2025.q1.1-lts" "2025.q1.0-lts" "1"
+	_test_release_common_is_early_product_version_than "2026.q4.0-cms-standalone" "2026.q4.0" "1"
 	_test_release_common_is_early_product_version_than "7.3.10-u35" "7.3.10-u36" "0"
 	_test_release_common_is_early_product_version_than "7.3.10-u36" "7.3.10-u35" "1"
 	_test_release_common_is_early_product_version_than "7.4.13-u134" "7.4.13-u135" "0"
@@ -219,9 +220,12 @@ function test_release_common_is_equals_or_later_product_version_than {
 	_test_release_common_is_equals_or_later_product_version_than "2025.q2.0" "2023.q3.3" "0"
 	_test_release_common_is_equals_or_later_product_version_than "2025.q4.10" "2026.q1.0-lts" "1"
 	_test_release_common_is_equals_or_later_product_version_than "2026.q1.0-lts" "2026.q1.0-lts" "0"
+	_test_release_common_is_equals_or_later_product_version_than "2026.q4.0-cms-standalone" "2026.q4.0" "0"
 	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u133" "7.4.13-u134" "1"
 	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u134" "7.4.13-u134" "0"
 	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u135" "7.4.13-u134" "0"
+	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u154" "2026.q4.0" "1"
+	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u154-cms-standalone" "7.4.13-u154" "0"
 }
 
 function test_release_common_is_first_quarterly_release {
@@ -238,6 +242,7 @@ function test_release_common_is_later_product_version_than {
 	_test_release_common_is_later_product_version_than "2025.q1.0-lts" "2025.q1.1-lts" "1"
 	_test_release_common_is_later_product_version_than "2025.q1.1-lts" "2025.q1.0-lts" "0"
 	_test_release_common_is_later_product_version_than "2025.q2.0" "2023.q3.3" "0"
+	_test_release_common_is_later_product_version_than "2026.q4.0-cms-standalone" "2026.q4.0" "1"
 	_test_release_common_is_later_product_version_than "7.3.10-u35" "7.3.10-u36" "1"
 	_test_release_common_is_later_product_version_than "7.3.10-u36" "7.3.10-u35" "0"
 	_test_release_common_is_later_product_version_than "7.4.13-u134" "7.4.13-u135" "1"
