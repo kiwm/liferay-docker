@@ -16,6 +16,7 @@ function main {
 		test_release_common_get_premium_support_lts_release_branches
 		test_release_common_get_product_group_version
 		test_release_common_get_product_version_without_lts_suffix
+		test_release_common_get_product_version_without_suffix
 		test_release_common_get_release_output
 		test_release_common_get_release_patch_version
 		test_release_common_get_release_quarter
@@ -82,6 +83,22 @@ function test_release_common_get_latest_product_version {
 	_test_release_common_get_latest_product_version "quarterly-candidate" "" "2025.q2.8"
 	_test_release_common_get_latest_product_version "quarterly-candidate" "2024.q1" "2024.q1.21"
 	_test_release_common_get_latest_product_version "quarterly-candidate" "2025.q1" "2025.q1.18-lts"
+
+	add_release_to_test_dependency "2026.q4.0-ai-hub" "release/test-dependencies/actual/dxp.html"
+	add_release_to_test_dependency "2026.q4.0-ai-hub-1790963992" "release/test-dependencies/actual/release-candidates.html"
+	add_release_to_test_dependency "2026.q4.0-cms-standalone" "release/test-dependencies/actual/dxp.html"
+	add_release_to_test_dependency "2026.q4.0-cms-standalone-1790963992" "release/test-dependencies/actual/release-candidates.html"
+	add_release_to_test_dependency "2027.q1.0-lts-cms-standalone" "release/test-dependencies/actual/dxp.html"
+	add_release_to_test_dependency "2027.q1.0-lts-cms-standalone-1790963992" "release/test-dependencies/actual/release-candidates.html"
+
+	_test_release_common_get_latest_product_version "quarterly" "" "2025.q2.8"
+	_test_release_common_get_latest_product_version "quarterly" "2026.q4" ""
+	_test_release_common_get_latest_product_version "quarterly" "2027.q1" ""
+	_test_release_common_get_latest_product_version "quarterly-candidate" "" "2025.q2.8"
+	_test_release_common_get_latest_product_version "quarterly-candidate" "2026.q4" ""
+	_test_release_common_get_latest_product_version "quarterly-candidate" "2027.q1" ""
+
+	git restore release/test-dependencies/actual/dxp.html release/test-dependencies/actual/release-candidates.html
 }
 
 function test_release_common_get_premium_support_lts_release_branches {
@@ -104,6 +121,15 @@ function test_release_common_get_product_version_without_lts_suffix {
 	_test_release_common_get_product_version_without_lts_suffix "7.4.3.132-ga132" "7.4.3.132-ga132"
 }
 
+function test_release_common_get_product_version_without_suffix {
+	_test_release_common_get_product_version_without_suffix "2025.q1.0-lts" "2025.q1.0"
+	_test_release_common_get_product_version_without_suffix "2025.q2.0" "2025.q2.0"
+	_test_release_common_get_product_version_without_suffix "2026.q4.0-cms-standalone" "2026.q4.0"
+	_test_release_common_get_product_version_without_suffix "7.4.13-u134" "7.4.13-u134"
+	_test_release_common_get_product_version_without_suffix "7.4.13-u149-ai-hub" "7.4.13-u149"
+	_test_release_common_get_product_version_without_suffix "7.4.13-u154-cms-standalone" "7.4.13-u154"
+}
+
 function test_release_common_get_release_output {
 	_test_release_common_get_release_output "" "release-candidate"
 	_test_release_common_get_release_output "hotfix" "hotfix"
@@ -116,6 +142,7 @@ function test_release_common_get_release_patch_version {
 	_test_release_common_get_release_patch_version "2024.q3.7" "7"
 	_test_release_common_get_release_patch_version "2025.q1.13-lts" "13"
 	_test_release_common_get_release_patch_version "2025.q2.0" "0"
+	_test_release_common_get_release_patch_version "2026.q4.0-cms-standalone" "0"
 }
 
 function test_release_common_get_release_quarter {
@@ -205,6 +232,7 @@ function test_release_common_is_early_product_version_than {
 	_test_release_common_is_early_product_version_than "2024.q4.7" "2025.q1.0-lts" "0"
 	_test_release_common_is_early_product_version_than "2025.q1.0-lts" "2025.q1.1-lts" "0"
 	_test_release_common_is_early_product_version_than "2025.q1.1-lts" "2025.q1.0-lts" "1"
+	_test_release_common_is_early_product_version_than "2026.q4.0-cms-standalone" "2026.q4.0" "1"
 	_test_release_common_is_early_product_version_than "7.3.10-u35" "7.3.10-u36" "0"
 	_test_release_common_is_early_product_version_than "7.3.10-u36" "7.3.10-u35" "1"
 	_test_release_common_is_early_product_version_than "7.4.13-u134" "7.4.13-u135" "0"
@@ -217,10 +245,17 @@ function test_release_common_is_equals_or_later_product_version_than {
 	_test_release_common_is_equals_or_later_product_version_than "2025.q1.0-lts" "2025.q1.1-lts" "1"
 	_test_release_common_is_equals_or_later_product_version_than "2025.q2.0" "2023.q3.3" "0"
 	_test_release_common_is_equals_or_later_product_version_than "2025.q4.10" "2026.q1.0-lts" "1"
+	_test_release_common_is_equals_or_later_product_version_than "2026.q1.0-lts" "2026.q1.0" "0"
 	_test_release_common_is_equals_or_later_product_version_than "2026.q1.0-lts" "2026.q1.0-lts" "0"
+	_test_release_common_is_equals_or_later_product_version_than "2026.q4.0" "2026.q4.0-cms-standalone" "0"
+	_test_release_common_is_equals_or_later_product_version_than "2026.q4.0-cms-standalone" "2026.q4.0" "0"
 	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u133" "7.4.13-u134" "1"
 	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u134" "7.4.13-u134" "0"
 	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u135" "7.4.13-u134" "0"
+	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u149-ai-hub" "7.4.13-u149" "0"
+	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u149-ai-hub" "7.4.13-u150" "1"
+	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u154" "2026.q4.0" "1"
+	_test_release_common_is_equals_or_later_product_version_than "7.4.13-u154-cms-standalone" "7.4.13-u154" "0"
 }
 
 function test_release_common_is_first_quarterly_release {
@@ -237,12 +272,14 @@ function test_release_common_is_later_product_version_than {
 	_test_release_common_is_later_product_version_than "2025.q1.0-lts" "2025.q1.1-lts" "1"
 	_test_release_common_is_later_product_version_than "2025.q1.1-lts" "2025.q1.0-lts" "0"
 	_test_release_common_is_later_product_version_than "2025.q2.0" "2023.q3.3" "0"
+	_test_release_common_is_later_product_version_than "2026.q4.0-cms-standalone" "2026.q4.0" "1"
 	_test_release_common_is_later_product_version_than "7.3.10-u35" "7.3.10-u36" "1"
 	_test_release_common_is_later_product_version_than "7.3.10-u36" "7.3.10-u35" "0"
 	_test_release_common_is_later_product_version_than "7.4.13-u134" "7.4.13-u135" "1"
 	_test_release_common_is_later_product_version_than "7.4.13-u135" "7.4.13-u134" "0"
 	_test_release_common_is_later_product_version_than "7.4.13-u149-ai-hub" "7.4.13-u150" "1"
 	_test_release_common_is_later_product_version_than "7.4.13-u150-ai-hub" "7.4.13-u149" "0"
+	_test_release_common_is_later_product_version_than "7.4.13-u154-cms-standalone" "7.4.13-u154" "1"
 }
 
 function test_release_common_is_latest_release_candidate_published {
@@ -346,6 +383,12 @@ function _test_release_common_get_product_group_version {
 
 function _test_release_common_get_product_version_without_lts_suffix {
 	assert_equals "$(get_product_version_without_lts_suffix "${1}")" "${2}"
+}
+
+function _test_release_common_get_product_version_without_suffix {
+	_PRODUCT_VERSION=${1}
+
+	assert_equals "$(_get_product_version_without_suffix)" "${2}"
 }
 
 function _test_release_common_get_release_output {

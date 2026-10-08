@@ -66,11 +66,11 @@ function get_latest_product_version {
 	elif [ "${product_version}" == "quarterly" ]
 	then
 		product_name="dxp"
-		product_version_regex="${product_version_regex}${product_name}/)(${quarterly_version_regex}\.\d+(-lts)?)"
+		product_version_regex="${product_version_regex}${product_name}/)(${quarterly_version_regex}\.\d+(-lts)?)(?=\")"
 	elif [ "${product_version}" == "quarterly-candidate" ]
 	then
 		product_name="dxp/release-candidates"
-		product_version_regex="${quarterly_version_regex}\.\d+(-lts)?"
+		product_version_regex="${quarterly_version_regex}\.\d+(-lts)?(?=-\d+[/\"])"
 	fi
 
 	local product_version_list_html
@@ -135,16 +135,7 @@ function get_release_output {
 }
 
 function get_release_patch_version {
-	local product_version=$(_get_product_version "${1}")
-
-	if is_lts_release "${product_version}"
-	then
-		echo "${product_version}" | \
-			cut --delimiter='.' --fields=3 | \
-			sed --expression "s/-lts//"
-	else
-		echo "${product_version}" | cut --delimiter='.' --fields=3
-	fi
+	echo "$(_get_product_version_without_suffix "${1}")" | cut --delimiter='.' --fields=3
 }
 
 function get_release_quarter {
@@ -387,12 +378,12 @@ function _compare_product_versions {
 
 	if [ -n "${_ACTUAL_PRODUCT_VERSION}" ]
 	then
-		product_version_1=${_ACTUAL_PRODUCT_VERSION}
+		product_version_1=$(_get_product_version_without_suffix "${_ACTUAL_PRODUCT_VERSION}")
 	else
-		product_version_1=$(_get_product_version)
+		product_version_1=$(_get_product_version_without_suffix)
 	fi
 
-	local product_version_2=${1}
+	local product_version_2=$(_get_product_version_without_suffix "${1}")
 
 	if [ "${2}" == "equals_or_later" ] &&
 	   [ "${product_version_1}" == "${product_version_2}" ]
@@ -459,5 +450,19 @@ function _get_product_version {
 		echo "${_PRODUCT_VERSION}"
 	else
 		echo "${1}"
+	fi
+}
+
+function _get_product_version_without_suffix {
+	local product_version=$(_get_product_version "${1}")
+
+	if is_quarterly_release "${product_version}"
+	then
+		echo "${product_version}" | cut --delimiter='-' --fields=1
+	elif is_u_release "${product_version}"
+	then
+		echo "${product_version}" | cut --delimiter='-' --fields=1,2
+	else
+		echo "${product_version}"
 	fi
 }
