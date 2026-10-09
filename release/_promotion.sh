@@ -83,14 +83,21 @@ function promote_boms {
 }
 
 function promote_packages {
-	if gcloud storage ls "gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}" | grep "${_PRODUCT_VERSION}"
+	local destination_bucket="gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}"
+
+	if is_cms_standalone_release
+	then
+		destination_bucket="${destination_bucket}/cms-standalone"
+	fi
+
+	if gcloud storage ls "${destination_bucket}" | grep "${_PRODUCT_VERSION}"
 	then
 		lc_log INFO "Skipping the upload of ${_PRODUCT_VERSION} to GCP because it already exists."
 
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 	fi
 
-	gcloud storage cp --recursive "gs://liferay-releases-candidates/${_PRODUCT_VERSION}-${LIFERAY_RELEASE_RC_BUILD_TIMESTAMP}" "gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}/${_PRODUCT_VERSION}"
+	gcloud storage cp --recursive "gs://liferay-releases-candidates/${_PRODUCT_VERSION}-${LIFERAY_RELEASE_RC_BUILD_TIMESTAMP}" "${destination_bucket}/${_PRODUCT_VERSION}"
 }
 
 function _download_bom_file {
