@@ -104,6 +104,15 @@ function main {
 
 	lc_time_run promote_packages
 
+	if is_cms_standalone_release
+	then
+		lc_time_run upload_to_docker_hub
+
+		lc_log INFO "Skipping the remaining release steps because ${_PRODUCT_VERSION} is a CMS standalone release."
+
+		return
+	fi
+
 	lc_time_run tag_release
 
 	promote_boms xanadu
@@ -241,6 +250,7 @@ function print_help {
 	echo ""
 	echo "The script reads the following environment variables:"
 	echo ""
+	echo "    LIFERAY_CMS_STANDALONE_RELEASE (optional): Set this to \"true\" to publish the CMS standalone bundle instead of a regular release"
 	echo "    LIFERAY_RELEASE_GCS_TOKEN (optional): *.json file containing the token to authenticate with Google Cloud Storage"
 	echo "    LIFERAY_RELEASE_GITHUB_PAT (optional): GitHub personal access token used to tag releases"
 	echo "    LIFERAY_RELEASE_NEXUS_REPOSITORY_PASSWORD (optional): Nexus user's password"
