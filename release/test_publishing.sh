@@ -87,7 +87,8 @@ function test_publishing_upload_opensearch {
 }
 
 function test_publishing_upload_to_docker_hub_cms_standalone {
-	_test_publishing_upload_to_docker_hub_cms_standalone "release" "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	_test_publishing_upload_to_docker_hub_cms_standalone "nightly" "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	_test_publishing_upload_to_docker_hub_cms_standalone "release" "${LIFERAY_COMMON_EXIT_CODE_OK}"
 	_test_publishing_upload_to_docker_hub_cms_standalone "release-candidate" "${LIFERAY_COMMON_EXIT_CODE_OK}"
 }
 
