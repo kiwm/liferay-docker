@@ -166,12 +166,7 @@ function build_bundle_images {
 	then
 		echo "Building bundle images for CMS standalone release ${LIFERAY_DOCKER_IMAGE_FILTER}."
 
-		if has_slim_build_criteria "${LIFERAY_DOCKER_IMAGE_FILTER}"
-		then
-			build_bundle_image "" "true" "${LIFERAY_DOCKER_IMAGE_FILTER}"
-		fi
-
-		build_bundle_image "" "false" "${LIFERAY_DOCKER_IMAGE_FILTER}"
+		build_slim_and_regular_bundle_images "" "${LIFERAY_DOCKER_IMAGE_FILTER}"
 
 		return
 	fi
@@ -219,12 +214,7 @@ function build_bundle_images {
 
 			local query=.\"${main_key}\".\"${version}\"
 
-			if has_slim_build_criteria "${version}"
-			then
-				build_bundle_image "${query}" "true" "${version}"
-			fi
-
-			build_bundle_image "${query}" "false" "${version}"
+			build_slim_and_regular_bundle_images "${query}" "${version}"
 		done
 	else
 		local main_key=$(get_main_key "${main_keys}" "${specified_version}")
@@ -239,12 +229,7 @@ function build_bundle_images {
 
 			if [[ "$(yq "${query}" < bundles.yml)" != "null" ]]
 			then
-				if has_slim_build_criteria "${specified_version}"
-				then
-					build_bundle_image "${query}" "true" "${specified_version}"
-				fi
-
-				build_bundle_image "${query}" "false" "${specified_version}"
+				build_slim_and_regular_bundle_images "${query}" "${specified_version}"
 			else
 				echo "No bundles were found."
 
