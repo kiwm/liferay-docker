@@ -47,6 +47,13 @@ function generate_release_properties_file {
 
 	local bundle_file_name="liferay-${LIFERAY_RELEASE_PRODUCT_NAME}-tomcat-${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}.7z"
 
+	local release_dir_name="${LIFERAY_RELEASE_PRODUCT_NAME}/${_PRODUCT_VERSION}"
+
+	if is_cms_standalone_release
+	then
+		release_dir_name="${LIFERAY_RELEASE_PRODUCT_NAME}/cms-standalone/${_PRODUCT_VERSION}"
+	fi
+
 	local product_version=$(echo "${_PRODUCT_VERSION}" | tr "[:lower:]" "[:upper:]")
 
 	product_version=$(echo "DXP ${product_version}" | sed --expression "s/-/ /")
@@ -56,7 +63,7 @@ function generate_release_properties_file {
 		echo "app.server.tomcat.version=${tomcat_version}"
 		echo "build.timestamp=${_BUILD_TIMESTAMP}"
 		echo "bundle.checksum.sha512=$(cat "${bundle_file_name}.sha512")"
-		echo "bundle.url=https://releases-cdn.liferay.com/${LIFERAY_RELEASE_PRODUCT_NAME}/${_PRODUCT_VERSION}/${bundle_file_name}"
+		echo "bundle.url=https://releases-cdn.liferay.com/${release_dir_name}/${bundle_file_name}"
 		echo "git.hash.liferay-docker=${_BUILDER_SHA}"
 		echo "git.hash.${LIFERAY_PORTAL_REPOSITORY_NAME}=${_GIT_SHA}"
 		echo "git.tag=$(get_product_version_without_lts_suffix)"
