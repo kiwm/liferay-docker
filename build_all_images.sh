@@ -461,6 +461,18 @@ function build_noop_image {
 	fi
 }
 
+function build_slim_and_regular_bundle_images {
+	local query=${1}
+	local version=${2}
+
+	if has_slim_build_criteria "${version}"
+	then
+		build_bundle_image "${query}" "true" "${version}"
+	fi
+
+	build_bundle_image "${query}" "false" "${version}"
+}
+
 function build_squid_image {
 	if [[ "$(get_latest_docker_hub_version "squid")" == "$(./release_notes.sh get-version)" ]] && [[ "${LIFERAY_DOCKER_DEVELOPER_MODE}" != "true" ]]
 	then
