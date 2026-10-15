@@ -174,7 +174,7 @@ function remove_old_release_candidate_tags {
 			--silent \
 			"https://hub.docker.com/v2/repositories/liferay/release-candidates/tags?page_size=80" | \
 			jq --raw-output ".results[].name" | \
-			grep "^${1}")
+			grep "^${1}-[0-9]")
 
 	if [ -z "${tags}" ]
 	then
@@ -320,6 +320,9 @@ function upload_opensearch {
 	if [ "$(get_release_output)" == "nightly" ]
 	then
 		release_dir_name="nightly"
+	elif is_cms_standalone_weekly
+	then
+		release_dir_name="cms-standalone-weekly"
 	fi
 
 	for module in api impl
@@ -360,19 +363,23 @@ function upload_release {
 
 		destination_bucket="gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}/nightly/"
 	else
-		gcloud storage rm --recursive "gs://liferay-releases-candidates/${_PRODUCT_VERSION}-[0-9]*"
+		local release_candidates_dir_name=$(get_release_candidates_dir_name)
 
-		destination_bucket="gs://liferay-releases-candidates/${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}/"
-
-		if is_cms_standalone_release
+		if is_cms_standalone_weekly
 		then
+			gcloud storage rm --recursive "gs://${release_candidates_dir_name}/"
+
 			gcloud storage rm --recursive "gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}/cms-standalone-weekly/"
 
 			gcloud storage cp \
 				"${_BUILD_DIR}/release/.lfrrelease-tomcat-bundle" \
 				"${_BUILD_DIR}/release/liferay-${LIFERAY_RELEASE_PRODUCT_NAME}-tomcat-${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}.7z" \
 				"gs://liferay-releases/${LIFERAY_RELEASE_PRODUCT_NAME}/cms-standalone-weekly/"
+		else
+			gcloud storage rm --recursive "gs://${release_candidates_dir_name}/${_PRODUCT_VERSION}-[0-9]*"
 		fi
+
+		destination_bucket="gs://${release_candidates_dir_name}/${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}/"
 	fi
 
 	for file in $( \
@@ -391,13 +398,6 @@ function upload_release {
 }
 
 function upload_to_docker_hub {
-	if (is_cms_standalone_release && [ "$(get_release_output)" != "release-candidate" ])
-	then
-		lc_log INFO "Docker images should only be pushed for CMS standalone release candidates."
-
-		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
-	fi
-
 	if [ "${LIFERAY_RELEASE_TEST_MODE}" == "true" ]
 	then
 		return
@@ -414,7 +414,7 @@ function upload_to_docker_hub {
 
 	if [ "$(get_release_output)" == "release-candidate" ]
 	then
-		LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}" LIFERAY_DOCKER_RELEASE_CANDIDATE="true" ./build_all_images.sh --push
+		LIFERAY_CMS_STANDALONE_WEEKLY="${LIFERAY_CMS_STANDALONE_WEEKLY}" LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}-${_BUILD_TIMESTAMP}" LIFERAY_DOCKER_RELEASE_CANDIDATE="true" ./build_all_images.sh --push
 	elif [ "$(get_release_output)" == "nightly" ]
 	then
 		if [[ "$(date +%w)" -eq 3 ]]
@@ -423,6 +423,9 @@ function upload_to_docker_hub {
 		else
 			LIFERAY_DOCKER_IMAGE_FILTER="7.4.13.nightly" LIFERAY_DOCKER_RELEASE_CANDIDATE="false" ./build_all_images.sh --push
 		fi
+	elif is_cms_standalone_release
+	then
+		LIFERAY_DOCKER_IMAGE_FILTER="${_PRODUCT_VERSION}" LIFERAY_DOCKER_RELEASE_CANDIDATE="false" ./build_all_images.sh --push
 	else
 		prepare_branch_to_commit "${_BASE_DIR}" "liferay-docker"
 

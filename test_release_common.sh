@@ -17,6 +17,8 @@ function main {
 		test_release_common_get_product_group_version
 		test_release_common_get_product_version_without_lts_suffix
 		test_release_common_get_product_version_without_suffix
+		test_release_common_get_release_candidates_dir_name
+		test_release_common_get_release_dir_name
 		test_release_common_get_release_output
 		test_release_common_get_release_patch_version
 		test_release_common_get_release_quarter
@@ -30,6 +32,7 @@ function main {
 		test_release_common_is_7_4_release
 		test_release_common_is_7_4_u_release
 		test_release_common_is_cms_standalone_release
+		test_release_common_is_cms_standalone_weekly
 		test_release_common_is_early_product_version_than
 		test_release_common_is_equals_or_later_product_version_than
 		test_release_common_is_first_quarterly_release
@@ -55,6 +58,7 @@ function set_up {
 
 function tear_down {
 	unset LIFERAY_CMS_STANDALONE_RELEASE
+	unset LIFERAY_CMS_STANDALONE_WEEKLY
 	unset LIFERAY_RELEASE_PRODUCT_NAME
 	unset LIFERAY_RELEASE_TEST_MODE
 	unset _ACTUAL_PRODUCT_VERSION
@@ -128,6 +132,22 @@ function test_release_common_get_product_version_without_suffix {
 	_test_release_common_get_product_version_without_suffix "7.4.13-u134" "7.4.13-u134"
 	_test_release_common_get_product_version_without_suffix "7.4.13-u149-ai-hub" "7.4.13-u149"
 	_test_release_common_get_product_version_without_suffix "7.4.13-u154-cms-standalone" "7.4.13-u154"
+}
+
+function test_release_common_get_release_candidates_dir_name {
+	_test_release_common_get_release_candidates_dir_name "liferay-releases-candidates"
+
+	LIFERAY_CMS_STANDALONE_WEEKLY="true"
+
+	_test_release_common_get_release_candidates_dir_name "liferay-releases-candidates/cms-standalone-weekly"
+
+	unset LIFERAY_CMS_STANDALONE_WEEKLY
+}
+
+function test_release_common_get_release_dir_name {
+	_test_release_common_get_release_dir_name "2026.q4.0" "dxp/2026.q4.0"
+	_test_release_common_get_release_dir_name "2026.q4.0-cms-standalone" "dxp/cms-standalone/2026.q4.0-cms-standalone"
+	_test_release_common_get_release_dir_name "7.4.13-u154-cms-standalone" "dxp/cms-standalone/7.4.13-u154-cms-standalone"
 }
 
 function test_release_common_get_release_output {
@@ -225,6 +245,22 @@ function test_release_common_is_cms_standalone_release {
 	_test_release_common_is_cms_standalone_release "7.4.13-u152" "0"
 
 	unset LIFERAY_CMS_STANDALONE_RELEASE
+
+	LIFERAY_CMS_STANDALONE_WEEKLY="true"
+
+	_test_release_common_is_cms_standalone_release "7.4.13-u152" "0"
+
+	unset LIFERAY_CMS_STANDALONE_WEEKLY
+}
+
+function test_release_common_is_cms_standalone_weekly {
+	_test_release_common_is_cms_standalone_weekly "1"
+
+	LIFERAY_CMS_STANDALONE_WEEKLY="true"
+
+	_test_release_common_is_cms_standalone_weekly "0"
+
+	unset LIFERAY_CMS_STANDALONE_WEEKLY
 }
 
 function test_release_common_is_early_product_version_than {
@@ -391,6 +427,16 @@ function _test_release_common_get_product_version_without_suffix {
 	assert_equals "$(_get_product_version_without_suffix)" "${2}"
 }
 
+function _test_release_common_get_release_candidates_dir_name {
+	assert_equals "$(get_release_candidates_dir_name)" "${1}"
+}
+
+function _test_release_common_get_release_dir_name {
+	_PRODUCT_VERSION=${1}
+
+	assert_equals "$(get_release_dir_name)" "${2}"
+}
+
 function _test_release_common_get_release_output {
 	LIFERAY_RELEASE_OUTPUT=${1}
 
@@ -465,6 +511,12 @@ function _test_release_common_is_cms_standalone_release {
 	is_cms_standalone_release "${1}"
 
 	assert_equals "${?}" "${2}"
+}
+
+function _test_release_common_is_cms_standalone_weekly {
+	is_cms_standalone_weekly
+
+	assert_equals "${?}" "${1}"
 }
 
 function _test_release_common_is_early_product_version_than {

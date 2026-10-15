@@ -71,6 +71,7 @@ function test_package_generate_release_properties_file {
 	_test_package_generate_release_properties_file "2025.q1.18-lts" "9.0.107" "2025-10-10"
 	_test_package_generate_release_properties_file "2025.q2.0" "9.0.104" "2025-05-22"
 	_test_package_generate_release_properties_file "2026.q1.0-lts" "9.0.110" "2026-03-18"
+	_test_package_generate_release_properties_file "2026.q4.0-cms-standalone" "10.1.48" "2026-12-15"
 	_test_package_generate_release_properties_file "7.4.13-u145" "10.1.48" "2025-12-20"
 	_test_package_generate_release_properties_file "7.4.13-u146" "10.1.48" "2026-02-02"
 }

@@ -125,6 +125,26 @@ function get_product_version_without_lts_suffix {
 	fi
 }
 
+function get_release_candidates_dir_name {
+	if is_cms_standalone_weekly
+	then
+		echo "liferay-releases-candidates/cms-standalone-weekly"
+	else
+		echo "liferay-releases-candidates"
+	fi
+}
+
+function get_release_dir_name {
+	local product_version=$(_get_product_version "${1}")
+
+	if is_cms_standalone_release "${product_version}"
+	then
+		echo "dxp/cms-standalone/${product_version}"
+	else
+		echo "dxp/${product_version}"
+	fi
+}
+
 function get_release_output {
 	if [ -z "${LIFERAY_RELEASE_OUTPUT}" ]
 	then
@@ -242,10 +262,18 @@ function is_ai_hub_release {
 }
 
 function is_cms_standalone_release {
-	if [ "${LIFERAY_CMS_STANDALONE_RELEASE}" == "true" ]
+	if [ "${LIFERAY_CMS_STANDALONE_RELEASE}" == "true" ] ||
+	   is_cms_standalone_weekly ||
+	   [[ "$(_get_product_version "${1}")" == *cms-standalone* ]]
 	then
 		return 0
-	elif [[ "$(_get_product_version "${1}")" == *cms-standalone* ]]
+	fi
+
+	return 1
+}
+
+function is_cms_standalone_weekly {
+	if [ "${LIFERAY_CMS_STANDALONE_WEEKLY}" == "true" ]
 	then
 		return 0
 	fi
