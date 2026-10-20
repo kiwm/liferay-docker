@@ -16,8 +16,12 @@ function main {
 		   [ "${1}" == "test_build_release_has_slack_message" ]
 		then
 			test_build_release_main || exit "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-		elif [ "${1}" == "test_build_hotfix_has_packaged_hotfix" ]
+		elif [ "${1}" == "test_build_hotfix_has_packaged_hotfix" ] ||
+		     [ "${1}" == "test_build_hotfix_smaller_than_13_mb" ]
 		then
+			LIFERAY_RELEASE_GIT_REF="fix-pack-fix-299864673"
+			_PRODUCT_VERSION="2026.q3.6"
+
 			test_build_hotfix_main || exit "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
 
@@ -34,9 +38,13 @@ function main {
 		test_build_release_not_handle_automated_build
 		test_build_release_not_has_free_tier_slack_message
 
+		LIFERAY_RELEASE_GIT_REF="fix-pack-fix-299864673"
+		_PRODUCT_VERSION="2026.q3.6"
+
 		test_build_hotfix_main || exit "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 
 		test_build_hotfix_has_packaged_hotfix
+		test_build_hotfix_smaller_than_13_mb
 
 		_clean_up_release_data
 
@@ -79,6 +87,7 @@ function tear_down {
 	unset LIFERAY_RELEASE_TEST_DATE
 	unset LIFERAY_RELEASE_TEST_DEFAULT_PATH
 	unset LIFERAY_RELEASE_TEST_MACHINE
+	unset LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE
 	unset RUN_SCANCODE_PIPELINE
 	unset TRIGGER_CI_TEST_SUITE
 	unset _RELEASE_PACKAGE
@@ -87,13 +96,9 @@ function tear_down {
 }
 
 function test_build_hotfix_has_packaged_hotfix {
-	local hotfix_zip_file="${_RELEASE_ROOT_DIR}/release-data/build/liferay-dxp-${_PRODUCT_VERSION}-hotfix-${LIFERAY_RELEASE_HOTFIX_ID}.zip"
-
 	assert_equals \
-		"$(ls -1 "${hotfix_zip_file}" | wc --lines)" \
+		"$(ls -1 "${_RELEASE_ROOT_DIR}/release-data/build/liferay-dxp-${_PRODUCT_VERSION}-hotfix-${LIFERAY_RELEASE_HOTFIX_ID}.zip" | wc --lines)" \
 		"1"
-
-	rm --force "${hotfix_zip_file}"
 }
 
 function test_build_hotfix_main {
@@ -107,6 +112,12 @@ function test_build_hotfix_main {
 	then
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
+}
+
+function test_build_hotfix_smaller_than_13_mb {
+	assert_equals \
+		"$(($(stat --format="%s" "${_RELEASE_ROOT_DIR}/release-data/build/liferay-dxp-2026.q3.6-hotfix-${LIFERAY_RELEASE_HOTFIX_ID}.zip") < 13000000))" \
+		"1"
 }
 
 function test_build_release_bundle_smaller_than_1_gb_300_mb {
@@ -152,6 +163,8 @@ function test_build_release_handle_automated_build_cms_standalone {
 		"true" \
 		"${LIFERAY_RELEASE_GIT_REF}" \
 		"master" \
+		"${LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE}" \
+		"true" \
 		"${RUN_SCANCODE_PIPELINE}" \
 		"false" \
 		"${TRIGGER_CI_TEST_SUITE}" \
@@ -161,6 +174,7 @@ function test_build_release_handle_automated_build_cms_standalone {
 	unset CI_TEST_SUITE
 	unset LIFERAY_CMS_STANDALONE_RELEASE
 	unset LIFERAY_RELEASE_TEST_DATE
+	unset LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE
 
 	LIFERAY_RELEASE_GIT_REF=${_PRODUCT_VERSION}
 }

@@ -17,6 +17,8 @@ function main {
 		test_release_common_get_product_group_version
 		test_release_common_get_product_version_without_lts_suffix
 		test_release_common_get_product_version_without_suffix
+		test_release_common_get_release_candidates_dir_name
+		test_release_common_get_release_dir_name
 		test_release_common_get_release_output
 		test_release_common_get_release_patch_version
 		test_release_common_get_release_quarter
@@ -41,6 +43,7 @@ function main {
 		test_release_common_is_quarterly_release_docker_image
 		test_release_common_is_u_release
 		test_release_common_is_u_release_docker_image
+		test_release_common_is_weekly_cms_standalone_release
 		test_release_common_set_latest_quarterly_product_versions
 	fi
 
@@ -57,6 +60,7 @@ function tear_down {
 	unset LIFERAY_CMS_STANDALONE_RELEASE
 	unset LIFERAY_RELEASE_PRODUCT_NAME
 	unset LIFERAY_RELEASE_TEST_MODE
+	unset LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE
 	unset _ACTUAL_PRODUCT_VERSION
 	unset _LATEST_QUARTERLY_CANDIDATE_PRODUCT_VERSION
 	unset _LATEST_QUARTERLY_PRODUCT_VERSION
@@ -128,6 +132,28 @@ function test_release_common_get_product_version_without_suffix {
 	_test_release_common_get_product_version_without_suffix "7.4.13-u134" "7.4.13-u134"
 	_test_release_common_get_product_version_without_suffix "7.4.13-u149-ai-hub" "7.4.13-u149"
 	_test_release_common_get_product_version_without_suffix "7.4.13-u154-cms-standalone" "7.4.13-u154"
+}
+
+function test_release_common_get_release_candidates_dir_name {
+	_test_release_common_get_release_candidates_dir_name "liferay-releases-candidates"
+
+	LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE="true"
+
+	_test_release_common_get_release_candidates_dir_name "liferay-releases-candidates/cms-standalone-weekly"
+
+	unset LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE
+}
+
+function test_release_common_get_release_dir_name {
+	_test_release_common_get_release_dir_name "2026.q4.0" "dxp/2026.q4.0"
+	_test_release_common_get_release_dir_name "2026.q4.0-cms-standalone" "dxp/cms-standalone/2026.q4.0-cms-standalone"
+	_test_release_common_get_release_dir_name "7.4.13-u154-cms-standalone" "dxp/cms-standalone/7.4.13-u154-cms-standalone"
+
+	LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE="true"
+
+	_test_release_common_get_release_dir_name "7.4.13-u154-cms-standalone" "dxp/cms-standalone-weekly"
+
+	unset LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE
 }
 
 function test_release_common_get_release_output {
@@ -225,6 +251,12 @@ function test_release_common_is_cms_standalone_release {
 	_test_release_common_is_cms_standalone_release "7.4.13-u152" "0"
 
 	unset LIFERAY_CMS_STANDALONE_RELEASE
+
+	LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE="true"
+
+	_test_release_common_is_cms_standalone_release "7.4.13-u152" "0"
+
+	unset LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE
 }
 
 function test_release_common_is_early_product_version_than {
@@ -340,6 +372,16 @@ function test_release_common_is_u_release_docker_image {
 	_test_release_common_is_u_release_docker_image "liferay/release-candidates:2025.q1.12-123456789" "1"
 }
 
+function test_release_common_is_weekly_cms_standalone_release {
+	_test_release_common_is_weekly_cms_standalone_release "1"
+
+	LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE="true"
+
+	_test_release_common_is_weekly_cms_standalone_release "0"
+
+	unset LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE
+}
+
 function test_release_common_set_latest_quarterly_product_versions {
 	_test_release_common_set_latest_quarterly_product_versions "" "2025.q2.8" "2025.q2.8"
 	_test_release_common_set_latest_quarterly_product_versions "2023.q1" "" ""
@@ -389,6 +431,16 @@ function _test_release_common_get_product_version_without_suffix {
 	_PRODUCT_VERSION=${1}
 
 	assert_equals "$(_get_product_version_without_suffix)" "${2}"
+}
+
+function _test_release_common_get_release_candidates_dir_name {
+	assert_equals "$(get_release_candidates_dir_name)" "${1}"
+}
+
+function _test_release_common_get_release_dir_name {
+	_PRODUCT_VERSION=${1}
+
+	assert_equals "$(get_release_dir_name)" "${2}"
 }
 
 function _test_release_common_get_release_output {
@@ -539,6 +591,12 @@ function _test_release_common_is_u_release_docker_image {
 	is_u_release_docker_image "${1}"
 
 	assert_equals "${?}" "${2}"
+}
+
+function _test_release_common_is_weekly_cms_standalone_release {
+	is_weekly_cms_standalone_release
+
+	assert_equals "${?}" "${1}"
 }
 
 function _test_release_common_set_latest_quarterly_product_versions {

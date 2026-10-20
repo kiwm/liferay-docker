@@ -125,6 +125,29 @@ function get_product_version_without_lts_suffix {
 	fi
 }
 
+function get_release_candidates_dir_name {
+	if is_weekly_cms_standalone_release
+	then
+		echo "liferay-releases-candidates/cms-standalone-weekly"
+	else
+		echo "liferay-releases-candidates"
+	fi
+}
+
+function get_release_dir_name {
+	local product_version=$(_get_product_version "${1}")
+
+	if is_weekly_cms_standalone_release
+	then
+		echo "dxp/cms-standalone-weekly"
+	elif is_cms_standalone_release "${product_version}"
+	then
+		echo "dxp/cms-standalone/${product_version}"
+	else
+		echo "dxp/${product_version}"
+	fi
+}
+
 function get_release_output {
 	if [ -z "${LIFERAY_RELEASE_OUTPUT}" ]
 	then
@@ -242,10 +265,9 @@ function is_ai_hub_release {
 }
 
 function is_cms_standalone_release {
-	if [ "${LIFERAY_CMS_STANDALONE_RELEASE}" == "true" ]
-	then
-		return 0
-	elif [[ "$(_get_product_version "${1}")" == *cms-standalone* ]]
+	if is_weekly_cms_standalone_release ||
+	   [ "${LIFERAY_CMS_STANDALONE_RELEASE}" == "true" ] ||
+	   [[ "$(_get_product_version "${1}")" == *cms-standalone* ]]
 	then
 		return 0
 	fi
@@ -345,6 +367,15 @@ function is_u_release {
 
 function is_u_release_docker_image {
 	if is_u_release "$(echo "${1}" | cut --delimiter=':' --fields=2)"
+	then
+		return 0
+	fi
+
+	return 1
+}
+
+function is_weekly_cms_standalone_release {
+	if [ "${LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE}" == "true" ]
 	then
 		return 0
 	fi

@@ -71,7 +71,9 @@ function build_bundle_image {
 
 	if is_release_candidate
 	then
-		bundle_url="gs://liferay-releases-candidates/${version}/$(gcloud storage cat "gs://liferay-releases-candidates/${version}/.lfrrelease-tomcat-bundle")"
+		local release_candidates_dir_name=$(get_release_candidates_dir_name)
+
+		bundle_url="gs://${release_candidates_dir_name}/${version}/$(gcloud storage cat "gs://${release_candidates_dir_name}/${version}/.lfrrelease-tomcat-bundle")"
 	fi
 
 	if is_nightly_release "${version}"
@@ -87,13 +89,15 @@ function build_bundle_image {
 
 	if [ -z "${bundle_url}" ]
 	then
-		bundle_url="releases-cdn.liferay.com/dxp/${version}/$( \
+		local release_dir_name=$(get_release_dir_name "${version}")
+
+		bundle_url="releases-cdn.liferay.com/${release_dir_name}/$( \
 			curl \
 				--fail \
 				--location \
 				--show-error \
 				--silent \
-				"https://releases-cdn.liferay.com/dxp/${version}/.lfrrelease-tomcat-bundle")"
+				"https://releases-cdn.liferay.com/${release_dir_name}/.lfrrelease-tomcat-bundle")"
 	fi
 
 	if [ -n "${additional_tags}" ]
@@ -146,12 +150,20 @@ function build_bundle_images {
 	# LIFERAY_DOCKER_IMAGE_FILTER=7.2.10 ./build_all_images.sh
 	#
 
-	if is_cms_standalone_release "${LIFERAY_DOCKER_IMAGE_FILTER}" ||
-	   is_release_candidate
+	if is_release_candidate
 	then
 		echo "Building bundle image ${LIFERAY_DOCKER_IMAGE_FILTER}."
 
 		build_bundle_image "" "false" "${LIFERAY_DOCKER_IMAGE_FILTER}"
+
+		return
+	fi
+
+	if is_cms_standalone_release "${LIFERAY_DOCKER_IMAGE_FILTER}"
+	then
+		echo "Building bundle images for CMS standalone release ${LIFERAY_DOCKER_IMAGE_FILTER}."
+
+		build_bundle_images_by_version "" "${LIFERAY_DOCKER_IMAGE_FILTER}"
 
 		return
 	fi
@@ -199,12 +211,7 @@ function build_bundle_images {
 
 			local query=.\"${main_key}\".\"${version}\"
 
-			if has_slim_build_criteria "${version}"
-			then
-				build_bundle_image "${query}" "true" "${version}"
-			fi
-
-			build_bundle_image "${query}" "false" "${version}"
+			build_bundle_images_by_version "${query}" "${version}"
 		done
 	else
 		local main_key=$(get_main_key "${main_keys}" "${specified_version}")
@@ -219,12 +226,7 @@ function build_bundle_images {
 
 			if [[ "$(yq "${query}" < bundles.yml)" != "null" ]]
 			then
-				if has_slim_build_criteria "${specified_version}"
-				then
-					build_bundle_image "${query}" "true" "${specified_version}"
-				fi
-
-				build_bundle_image "${query}" "false" "${specified_version}"
+				build_bundle_images_by_version "${query}" "${specified_version}"
 			else
 				echo "No bundles were found."
 
@@ -232,6 +234,18 @@ function build_bundle_images {
 			fi
 		fi
 	fi
+}
+
+function build_bundle_images_by_version {
+	local query=${1}
+	local version=${2}
+
+	if has_slim_build_criteria "${version}"
+	then
+		build_bundle_image "${query}" "true" "${version}"
+	fi
+
+	build_bundle_image "${query}" "false" "${version}"
 }
 
 function build_caddy_image {

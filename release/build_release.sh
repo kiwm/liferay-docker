@@ -112,6 +112,7 @@ function handle_automated_build {
 		CI_TEST_SUITE="portal-release-cms-standalone"
 		LIFERAY_CMS_STANDALONE_RELEASE=true
 		LIFERAY_RELEASE_GIT_REF="master"
+		LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE=true
 	fi
 
 	TRIGGER_CI_TEST_SUITE=true
@@ -265,6 +266,8 @@ function main {
 
 		lc_time_run build_product
 
+		lc_time_run clean_up_cmp_and_dsr_modules
+
 		lc_time_run clean_up_ignored_dxp_modules
 
 		lc_time_run clean_up_ignored_dxp_plugins
@@ -316,6 +319,7 @@ function print_help {
 	echo "    LIFERAY_RELEASE_PATCHER_REQUEST_KEY (optional): Request key from Patcher that is used to report back statuses to Patcher"
 	echo "    LIFERAY_RELEASE_PATCHER_USER_ID (optional): User ID of the patcher user who started the build"
 	echo "    LIFERAY_RELEASE_UPLOAD (optional): Set this to \"true\" to upload artifacts"
+	echo "    LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE (optional): Set this to \"true\" to publish the CMS standalone bundle as the weekly build instead of a release candidate"
 	echo ""
 	echo "Example: LIFERAY_RELEASE_GIT_REF=release-2023.q3 ${0}"
 
@@ -333,7 +337,8 @@ function print_variables {
 		grep --invert-match "LIFERAY_RELEASE_UPLOAD" | \
 		grep \
 			--regexp="^LIFERAY_CMS_STANDALONE_RELEASE" \
-			--regexp="^LIFERAY_RELEASE" | \
+			--regexp="^LIFERAY_RELEASE" \
+			--regexp="^LIFERAY_WEEKLY_CMS_STANDALONE_RELEASE" | \
 		tr "\n" " ")
 
 	echo "${environment}LIFERAY_RELEASE_DEVELOPER_MODE=true ./build_release.sh"

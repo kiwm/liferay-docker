@@ -8,8 +8,10 @@ function build_docker_image {
 
 	DOCKER_IMAGE_TAGS=()
 
-	DOCKER_IMAGE_TAGS+=("${LIFERAY_DOCKER_REPOSITORY}${docker_image_name}:${release_version}-${TIMESTAMP}")
-	DOCKER_IMAGE_TAGS+=("${LIFERAY_DOCKER_REPOSITORY}${docker_image_name}:${release_version}")
+	local docker_image_repository=$(echo "${LIFERAY_DOCKER_REPOSITORY}" | sed --expression "s/\/$//")
+
+	DOCKER_IMAGE_TAGS+=("${docker_image_repository}/${docker_image_name}:${release_version}-${TIMESTAMP}")
+	DOCKER_IMAGE_TAGS+=("${docker_image_repository}/${docker_image_name}:${release_version}")
 
 	if [[ " ${@} " =~ " --push " ]]
 	then
@@ -60,6 +62,8 @@ function check_usage {
 function main {
 	check_usage "${@}"
 
+	make_logs_directory
+
 	make_temp_directory templates/bundle
 
 	prepare_temp_directory "${@}"
@@ -102,7 +106,8 @@ function prepare_temp_directory {
 		--archive \
 		--quiet \
 		"${excludes[@]}" \
-		"${1}/" "${TEMP_DIR}/liferay"
+		"${1}/" \
+		"${TEMP_DIR}/liferay"
 }
 
 main "${@}"
