@@ -2,6 +2,7 @@
 
 source ../_gh_pr.sh
 source ../_liferay_common.sh
+source ../_release_common.sh
 source ../release/_git.sh
 source ./_crowdin_common.sh
 
@@ -77,46 +78,28 @@ function main {
 
 	lc_time_run fetch_upstream_master
 
-	lc_time_run set_supported_release_branches
+	lc_time_run set_release_branches
 
 	_backport_translations
 }
 
-function set_supported_release_branches {
-	_SUPPORTED_RELEASE_BRANCHES=()
+function set_release_branches {
+	local latest_quarterly_product_version
 
-	local releases_json_dir=$(mktemp --directory)
-	local releases_json_url="https://releases.liferay.com/releases.json"
-
-	lc_log INFO "Downloading ${releases_json_url} to find the supported release branches."
-
-	LIFERAY_COMMON_DOWNLOAD_SKIP_CACHE="true" lc_download "${releases_json_url}" "${releases_json_dir}/releases.json"
+	latest_quarterly_product_version=$(get_latest_product_version "quarterly")
 
 	if [[ "${?}" -ne 0 ]]
 	then
-		lc_log ERROR "Unable to download ${releases_json_url}."
-
-		rm --force --recursive "${releases_json_dir}"
+		lc_log ERROR "Unable to get the latest quarterly product version."
 
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
 
-	local release_branch
+	_RELEASE_BRANCHES=$(get_premium_support_lts_release_branches)
 
-	for release_branch in $(_get_supported_release_branches "${releases_json_dir}/releases.json")
-	do
-		lc_log INFO "Found the supported release branch ${release_branch} in releases.json."
-
-		_SUPPORTED_RELEASE_BRANCHES+=("${release_branch}")
-	done
-
-	rm --force --recursive "${releases_json_dir}"
-
-	if [[ "${#_SUPPORTED_RELEASE_BRANCHES[@]}" -eq 0 ]]
+	if ! is_lts_release "${latest_quarterly_product_version}"
 	then
-		lc_log ERROR "Unable to find a supported release branch in ${releases_json_url}."
-
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		_RELEASE_BRANCHES="${_RELEASE_BRANCHES} release-$(get_product_group_version "${latest_quarterly_product_version}")"
 	fi
 }
 
@@ -140,11 +123,11 @@ function set_up_branch {
 }
 
 function _backport_translations {
-	lc_log INFO "Backporting translations to the supported release branches: ${_SUPPORTED_RELEASE_BRANCHES[*]}."
+	lc_log INFO "Backporting translations to the release branches: ${_RELEASE_BRANCHES}."
 
 	local release_branch
 
-	for release_branch in "${_SUPPORTED_RELEASE_BRANCHES[@]}"
+	for release_branch in ${_RELEASE_BRANCHES}
 	do
 		lc_log INFO "Backporting translations from master to ${release_branch}."
 
@@ -230,13 +213,6 @@ function _get_master_translations {
 			}
 		}
 	' "${source_file}" <(git show "upstream/master:${source_file}" 2> /dev/null) <(git show "upstream/master:${translation_file}" 2> /dev/null)
-}
-
-function _get_supported_release_branches {
-	jq --raw-output ".[] | select(.product == \"dxp\" and ((.tags // []) | index(\"supported\"))) | .productGroupVersion" "${1}" | \
-		grep --extended-regexp "^[0-9]{4}\.q[1-4]$" | \
-		sort --unique | \
-		sed --expression "s/^/release-/"
 }
 
 main "${@}"
