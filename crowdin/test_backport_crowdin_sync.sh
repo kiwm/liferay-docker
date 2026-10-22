@@ -2,6 +2,7 @@
 
 source ../_liferay_common.sh
 source ../_test_common.sh
+source ../test/_test_util.sh
 source ./backport_crowdin_sync.sh
 
 function main {
@@ -13,6 +14,7 @@ function main {
 	else
 		test_backport_crowdin_sync_export_master_translations
 		test_backport_crowdin_sync_not_export_master_translations
+		test_backport_crowdin_sync_set_release_branches
 	fi
 
 	tear_down
@@ -55,6 +57,11 @@ function test_backport_crowdin_sync_not_export_master_translations {
 	merge_and_commit_translations "LPD-105062 Backport Translations" &> /dev/null
 
 	assert_equals "$(git log --format="%s" --max-count=1)" "Release branch"
+}
+
+function test_backport_crowdin_sync_set_release_branches {
+	_test_backport_crowdin_sync_set_release_branches "2026.q1.3-lts" "release-2024.q1 release-2025.q1 release-2026.q1"
+	_test_backport_crowdin_sync_set_release_branches "2026.q2.1" "release-2024.q1 release-2025.q1 release-2026.q1 release-2026.q2"
 }
 
 function _set_up_translation_files {
@@ -136,6 +143,26 @@ function _test_backport_crowdin_sync_export_master_translations {
 		"${_PROJECTS_DIR}/expected.properties"
 
 	rm --force "${_PROJECTS_DIR}/expected.properties"
+}
+
+function _test_backport_crowdin_sync_set_release_branches {
+	lc_cd "${_CROWDIN_DIR}"
+
+	LIFERAY_RELEASE_TEST_DATE="2026-06-01"
+
+	_RELEASE_ROOT_DIR="$(dirname "${_CROWDIN_DIR}")/release"
+
+	add_release_to_test_dependency "${1}" "${_RELEASE_ROOT_DIR}/test-dependencies/actual/dxp.html"
+
+	set_release_branches
+
+	assert_equals "${_RELEASE_BRANCHES}" "${2}"
+
+	git restore "${_RELEASE_ROOT_DIR}/test-dependencies/actual/dxp.html"
+
+	unset LIFERAY_RELEASE_TEST_DATE
+	unset _RELEASE_BRANCHES
+	unset _RELEASE_ROOT_DIR
 }
 
 main "${@}"
