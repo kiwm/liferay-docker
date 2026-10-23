@@ -18,6 +18,7 @@ function main {
 		test_marketplace_deploy_punchout2go_activation_key
 		test_marketplace_get_latest_product_virtual_settings_file_entry_json_index
 		test_marketplace_get_liferay_marketplace_product_module_regex
+		test_marketplace_get_liferay_marketplace_product_names
 	fi
 }
 
@@ -127,6 +128,23 @@ function test_marketplace_get_liferay_marketplace_product_module_regex {
 	_test_marketplace_get_liferay_marketplace_product_module_regex "dsr" "com.liferay.site.dsr.analytics.rest.api" "0"
 }
 
+function test_marketplace_get_liferay_marketplace_product_names {
+	declare -A LIFERAY_MARKETPLACE_PRODUCTS=(
+		["cmp"]="d85abb01-6c60-addd-0f73-6621612aae72"
+		["drools"]="15099181"
+		["dsr"]="DSR"
+	)
+
+	_test_marketplace_get_liferay_marketplace_product_names "2026.q2.0" "drools"
+	_test_marketplace_get_liferay_marketplace_product_names "2026.q3.8" "cmp dsr"
+	_test_marketplace_get_liferay_marketplace_product_names "2026.q4.0-cms-standalone" "cmp"
+	_test_marketplace_get_liferay_marketplace_product_names "2027.q1.0-lts" "cmp drools dsr"
+	_test_marketplace_get_liferay_marketplace_product_names "2027.q1.1-lts" "cmp dsr"
+	_test_marketplace_get_liferay_marketplace_product_names "2027.q1.1-lts-cms-standalone" "cmp"
+
+	unset _PRODUCT_VERSION
+}
+
 function _test_marketplace_check_punchout2go_activation_key {
 	local deployment_log_file=$(mktemp)
 
@@ -159,6 +177,12 @@ function _test_marketplace_get_liferay_marketplace_product_module_regex {
 			"$(_get_liferay_marketplace_product_module_regex "${1}")"
 
 	assert_equals "${?}" "${3}"
+}
+
+function _test_marketplace_get_liferay_marketplace_product_names {
+	_PRODUCT_VERSION=${1}
+
+	assert_equals "$(_get_liferay_marketplace_product_names | xargs)" "${2}"
 }
 
 main "${@}"
