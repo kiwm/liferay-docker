@@ -12,7 +12,26 @@ function check_liferay_marketplace_products_compatibility {
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 	fi
 
-	if ! is_first_quarterly_release
+	if [ -z "${LIFERAY_RELEASE_TEST_MODE}" ]
+	then
+		declare -A LIFERAY_MARKETPLACE_PRODUCTS=(
+			["adyen"]="f05ab2d6-1d54-c72d-988a-91fcd5669ef3"
+			["cmp"]="d85abb01-6c60-addd-0f73-6621612aae72"
+			["drools"]="15099181"
+			["dsr"]="DSR"
+			["hubspot"]="53d5501f-abd7-b579-af7f-56b8b15966d0"
+			["liferaycommerceminium4globalcss"]="ebcf98b3-9844-b783-757a-579944b18b00"
+			["liferaypaypalbatch"]="a1946869-212f-0793-d703-b623d0f149a6"
+			["liferayupscommerceshippingengine"]="f1cb4b5e-fbdd-7f70-df5d-9f1a736784b2"
+			["opensearch"]="ea19fdc8-b908-690d-9f90-15edcdd23a87"
+			["punchout"]="175496027"
+			["stripe"]="6a02a832-083b-f08c-888a-0a59d7c09119"
+		)
+	fi
+
+	local liferay_marketplace_product_names=$(_get_liferay_marketplace_product_names)
+
+	if [ -z "${liferay_marketplace_product_names}" ]
 	then
 		lc_log INFO "The compatibility of Liferay Marketplace products should not be checked on the ${_PRODUCT_VERSION} release."
 
@@ -29,21 +48,11 @@ function check_liferay_marketplace_products_compatibility {
 		fi
 
 		mkdir --parents "${_BUILD_DIR}/marketplace"
-
-		declare -A LIFERAY_MARKETPLACE_PRODUCTS=(
-			["adyen"]="f05ab2d6-1d54-c72d-988a-91fcd5669ef3"
-			["drools"]="15099181"
-			["hubspot"]="53d5501f-abd7-b579-af7f-56b8b15966d0"
-			["liferaycommerceminium4globalcss"]="ebcf98b3-9844-b783-757a-579944b18b00"
-			["liferaypaypalbatch"]="a1946869-212f-0793-d703-b623d0f149a6"
-			["liferayupscommerceshippingengine"]="f1cb4b5e-fbdd-7f70-df5d-9f1a736784b2"
-			["opensearch"]="ea19fdc8-b908-690d-9f90-15edcdd23a87"
-			["punchout"]="175496027"
-			["stripe"]="6a02a832-083b-f08c-888a-0a59d7c09119"
-		)
 	fi
 
-	for liferay_marketplace_product_name in $(printf "%s\n" "${!LIFERAY_MARKETPLACE_PRODUCTS[@]}" | sort --ignore-case)
+	local liferay_marketplace_product_name
+
+	for liferay_marketplace_product_name in ${liferay_marketplace_product_names}
 	do
 		if [ -z "${LIFERAY_RELEASE_TEST_MODE}" ]
 		then
@@ -87,7 +96,7 @@ function check_liferay_marketplace_products_compatibility {
 
 	start_tomcat "print-startup-logs" >> "${_LIFERAY_MARKETPLACE_PRODUCTS_DEPLOYMENT_LOG_FILE}"
 
-	for liferay_marketplace_product_name in $(printf "%s\n" "${!LIFERAY_MARKETPLACE_PRODUCTS[@]}" | sort --ignore-case)
+	for liferay_marketplace_product_name in ${liferay_marketplace_product_names}
 	do
 		_check_liferay_marketplace_product_compatibility "${LIFERAY_MARKETPLACE_PRODUCTS[${liferay_marketplace_product_name}]}" "${liferay_marketplace_product_name}"
 
@@ -127,7 +136,7 @@ function _check_liferay_marketplace_product_compatibility {
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
 
-	local modules_info=$(blade sh lb -s | grep "${product_name}")
+	local modules_info=$(blade sh lb -s | grep --extended-regexp "$(_get_liferay_marketplace_product_module_regex "${product_name}")")
 
 	if [ -z "${modules_info}" ]
 	then
@@ -354,6 +363,42 @@ function _get_latest_product_virtual_settings_file_entry_json_index {
 	echo "${latest_product_virtual_settings_file_entry_json_index}"
 }
 
+function _get_liferay_marketplace_product_module_regex {
+	local product_name=${1}
+
+	if [ "${product_name}" == "cmp" ]
+	then
+		echo "cmp|content.marketing.platform"
+	elif [ "${product_name}" == "dsr" ]
+	then
+		echo "digital.sales.room|dsr"
+	else
+		echo "${product_name}"
+	fi
+}
+
+function _get_liferay_marketplace_product_names {
+	if is_first_quarterly_release && ! is_cms_standalone_release
+	then
+		if is_early_product_version_than "2026.q3.0"
+		then
+			printf "%s\n" "${!LIFERAY_MARKETPLACE_PRODUCTS[@]}" | \
+				grep --extended-regexp --invert-match "^(cmp|dsr)$" | \
+				sort --ignore-case
+		else
+			printf "%s\n" "${!LIFERAY_MARKETPLACE_PRODUCTS[@]}" | sort --ignore-case
+		fi
+	elif is_quarterly_release && is_equals_or_later_product_version_than "2026.q3.0"
+	then
+		if is_cms_standalone_release
+		then
+			echo "cmp"
+		else
+			echo "cmp dsr"
+		fi
+	fi
+}
+
 function _get_product_by_external_reference_code {
 	local product_external_reference_code=${1}
 
@@ -482,6 +527,13 @@ function _update_product_supported_versions {
 
 	local product_external_reference_code=${1}
 	local product_name=${2}
+
+	if [ "${product_name}" == "cmp" ] || [ "${product_name}" == "dsr" ]
+	then
+		lc_log INFO "The list of supported versions should not be updated for product ${product_name}."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
 
 	local product_virtual_settings_file_entries=$(_get_product_virtual_settings_file_entries_by_external_reference_code "${product_external_reference_code}")
 
