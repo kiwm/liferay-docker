@@ -2,6 +2,7 @@
 
 source ../_liferay_common.sh
 source ../_test_common.sh
+source ../test/_test_util.sh
 source ./backport_crowdin_sync.sh
 
 function main {
@@ -47,24 +48,8 @@ function test_backport_crowdin_sync_export_master_translations {
 }
 
 function test_backport_crowdin_sync_get_supported_release_branches {
-	cat <<- END > "${_PROJECTS_DIR}/releases.json"
-	[
-		{"product": "dxp", "productGroupVersion": "2024.q1", "tags": ["supported", "testBom"]},
-		{"product": "dxp", "productGroupVersion": "2025.q1", "tags": ["supported"]},
-		{"product": "dxp", "productGroupVersion": "2025.q1", "tags": ["recommended", "supported"]},
-		{"product": "dxp", "productGroupVersion": "2025.q2", "tags": ["recommended"]},
-		{"product": "dxp", "productGroupVersion": "2026.q1"},
-		{"product": "dxp", "productGroupVersion": "7.4", "tags": ["supported"]},
-		{"product": "portal", "productGroupVersion": "2026.q2", "tags": ["supported"]}
-	]
-	END
-
-	assert_equals \
-		"$(_get_supported_release_branches "${_PROJECTS_DIR}/releases.json")" \
-		"release-2024.q1
-release-2025.q1"
-
-	rm --force "${_PROJECTS_DIR}/releases.json"
+	_test_backport_crowdin_sync_get_supported_release_branches "2026.q1.3-lts" "release-2024.q1 release-2025.q1 release-2026.q1"
+	_test_backport_crowdin_sync_get_supported_release_branches "2026.q2.1" "release-2024.q1 release-2025.q1 release-2026.q1 release-2026.q2"
 }
 
 function test_backport_crowdin_sync_not_export_master_translations {
@@ -158,6 +143,23 @@ function _test_backport_crowdin_sync_export_master_translations {
 		"${_PROJECTS_DIR}/expected.properties"
 
 	rm --force "${_PROJECTS_DIR}/expected.properties"
+}
+
+function _test_backport_crowdin_sync_get_supported_release_branches {
+	lc_cd "$(dirname "${_CROWDIN_DIR}")/release"
+
+	LIFERAY_RELEASE_TEST_DATE="2026-06-01"
+
+	_RELEASE_ROOT_DIR=${PWD}
+
+	add_release_to_test_dependency "${1}" "test-dependencies/actual/dxp.html"
+
+	assert_equals "$(get_supported_release_branches 2> /dev/null)" "${2}"
+
+	git restore test-dependencies/actual/dxp.html
+
+	unset LIFERAY_RELEASE_TEST_DATE
+	unset _RELEASE_ROOT_DIR
 }
 
 main "${@}"
