@@ -60,7 +60,7 @@ function build_docker_image {
 
 		release_hash=${release_hash:0:7}
 
-		if [[ "${release_branch}" == master ]]
+		if [ "${release_branch}" == "master" ]
 		then
 			LABEL_VERSION="Master Snapshot on ${LABEL_VERSION} at ${release_hash}"
 		else
@@ -102,7 +102,7 @@ function build_docker_image {
 		fi
 	done
 
-	if [[ "${LIFERAY_DOCKER_LATEST}" == "true" ]]
+	if [ "${LIFERAY_DOCKER_LATEST}" == "true" ]
 	then
 		DOCKER_IMAGE_TAGS+=("${LIFERAY_DOCKER_REPOSITORY}/${DOCKER_IMAGE_NAME}:latest")
 	fi
@@ -149,17 +149,12 @@ function check_release {
 	   [[ "${RELEASE_FILE_NAME}" == *-dxp-* ]] ||
 	   [[ "${RELEASE_FILE_NAME}" == *-private* ]]
 	then
-		DOCKER_IMAGE_NAME="dxp"
+		DOCKER_IMAGE_NAME=$(get_docker_image_name "${LIFERAY_DOCKER_RELEASE_VERSION}")
 		DOCKER_LABEL_NAME="Liferay DXP"
 	else
 		echo "${RELEASE_FILE_NAME} is an unsupported release file name."
 
 		exit "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-
-	if is_release_candidate
-	then
-		DOCKER_IMAGE_NAME="release-candidates"
 	fi
 }
 
@@ -173,7 +168,7 @@ function check_usage {
 }
 
 function download_trial_dxp_license {
-	if [[ "${DOCKER_LABEL_NAME}" == "Liferay DXP" ]]
+	if [ "${DOCKER_LABEL_NAME}" == "Liferay DXP" ]
 	then
 		rm --force --recursive "${TEMP_DIR}/liferay/data/license"
 
@@ -181,6 +176,18 @@ function download_trial_dxp_license {
 		then
 			exit 4
 		fi
+	fi
+}
+
+function get_docker_image_name {
+	if (is_release_candidate || is_weekly_cms_standalone_release)
+	then
+		echo "release-candidates"
+	elif is_cms_standalone_release "${1}"
+	then
+		echo "cms-standalone"
+	else
+		echo "dxp"
 	fi
 }
 
@@ -210,7 +217,11 @@ function get_latest_tomcat_version {
 	then
 		local master_tomcat_version=$(lc_get_property "app.server.properties" "app.server.tomcat.version")
 
-		if [[ "$(echo "${master_tomcat_version}" | cut --delimiter='.' --fields=1)" == "${tomcat_major_version}" ]]
+		if [ "$( \
+			echo "${master_tomcat_version}" | \
+			cut \
+				--delimiter='.' \
+				--fields=1)" == "${tomcat_major_version}" ]
 		then
 			latest_tomcat_version=$( \
 				echo -e "${latest_tomcat_version}\n${master_tomcat_version}" | \
