@@ -95,6 +95,7 @@ Test files follow the same structure as the Files and Functions sections, with a
 - Add `source _test_common.sh` to import the test utilities `assert_equals`, `common_set_up`, and `common_tear_down`. Of these, only `assert_equals` is required; `common_set_up` and `common_tear_down` are optional.
 - Add a `source` for the file being tested.
 - Declare functions `set_up` and `tear_down` to create and destroy the test dependencies, respectively.
+- Unset each global or environment variable that a test function, or its `_test_*` helper, assigns. When more than one test assigns it and no other test reads it, unset it in `tear_down`; otherwise, unset it at the end of each test that assigns it. A variable declared with `declare -A` inside a function is local and needs no `unset`.
 - Prefix test files and test functions with `test_`: for a file named `file_a.sh`, create `test_file_a.sh` and name its test functions `test_file_a_function_1`, `test_file_a_function_2`, etc.
 
 ```bash

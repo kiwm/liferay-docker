@@ -12,7 +12,26 @@ function check_liferay_marketplace_products_compatibility {
 		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
 	fi
 
-	if ! is_first_quarterly_release
+	if [ -z "${LIFERAY_RELEASE_TEST_MODE}" ]
+	then
+		declare -A LIFERAY_MARKETPLACE_PRODUCTS=(
+			["adyen"]="f05ab2d6-1d54-c72d-988a-91fcd5669ef3"
+			["cmp"]="d85abb01-6c60-addd-0f73-6621612aae72"
+			["drools"]="15099181"
+			["dsr"]="DSR"
+			["hubspot"]="53d5501f-abd7-b579-af7f-56b8b15966d0"
+			["liferaycommerceminium4globalcss"]="ebcf98b3-9844-b783-757a-579944b18b00"
+			["liferaypaypalbatch"]="a1946869-212f-0793-d703-b623d0f149a6"
+			["liferayupscommerceshippingengine"]="f1cb4b5e-fbdd-7f70-df5d-9f1a736784b2"
+			["opensearch"]="ea19fdc8-b908-690d-9f90-15edcdd23a87"
+			["punchout"]="175496027"
+			["stripe"]="6a02a832-083b-f08c-888a-0a59d7c09119"
+		)
+	fi
+
+	local liferay_marketplace_product_names=$(_get_liferay_marketplace_product_names_by_release "${!LIFERAY_MARKETPLACE_PRODUCTS[@]}")
+
+	if [ -z "${liferay_marketplace_product_names}" ]
 	then
 		lc_log INFO "The compatibility of Liferay Marketplace products should not be checked on the ${_PRODUCT_VERSION} release."
 
@@ -29,21 +48,11 @@ function check_liferay_marketplace_products_compatibility {
 		fi
 
 		mkdir --parents "${_BUILD_DIR}/marketplace"
-
-		declare -A LIFERAY_MARKETPLACE_PRODUCTS=(
-			["adyen"]="f05ab2d6-1d54-c72d-988a-91fcd5669ef3"
-			["drools"]="15099181"
-			["hubspot"]="53d5501f-abd7-b579-af7f-56b8b15966d0"
-			["liferaycommerceminium4globalcss"]="ebcf98b3-9844-b783-757a-579944b18b00"
-			["liferaypaypalbatch"]="a1946869-212f-0793-d703-b623d0f149a6"
-			["liferayupscommerceshippingengine"]="f1cb4b5e-fbdd-7f70-df5d-9f1a736784b2"
-			["opensearch"]="ea19fdc8-b908-690d-9f90-15edcdd23a87"
-			["punchout"]="175496027"
-			["stripe"]="6a02a832-083b-f08c-888a-0a59d7c09119"
-		)
 	fi
 
-	for liferay_marketplace_product_name in $(printf "%s\n" "${!LIFERAY_MARKETPLACE_PRODUCTS[@]}" | sort --ignore-case)
+	local liferay_marketplace_product_name
+
+	for liferay_marketplace_product_name in ${liferay_marketplace_product_names}
 	do
 		if [ -z "${LIFERAY_RELEASE_TEST_MODE}" ]
 		then
@@ -57,14 +66,11 @@ function check_liferay_marketplace_products_compatibility {
 			fi
 		fi
 
-		if [ "${liferay_marketplace_product_name}" == "punchout" ]
-		then
-			_deploy_punchout2go_activation_key
+		_deploy_liferay_marketplace_product_activation_key "${liferay_marketplace_product_name}"
 
-			if [[ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]]
-			then
-				return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-			fi
+		if [[ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]]
+		then
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
 
 		lc_log INFO "Deploying Liferay Marketplace product zip file ${liferay_marketplace_product_name}.zip to ${_BUNDLES_DIR}/deploy.\n"
@@ -87,7 +93,7 @@ function check_liferay_marketplace_products_compatibility {
 
 	start_tomcat "print-startup-logs" >> "${_LIFERAY_MARKETPLACE_PRODUCTS_DEPLOYMENT_LOG_FILE}"
 
-	for liferay_marketplace_product_name in $(printf "%s\n" "${!LIFERAY_MARKETPLACE_PRODUCTS[@]}" | sort --ignore-case)
+	for liferay_marketplace_product_name in ${liferay_marketplace_product_names}
 	do
 		_check_liferay_marketplace_product_compatibility "${LIFERAY_MARKETPLACE_PRODUCTS[${liferay_marketplace_product_name}]}" "${liferay_marketplace_product_name}"
 
@@ -98,20 +104,41 @@ function check_liferay_marketplace_products_compatibility {
 			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
 
-		if [ "${liferay_marketplace_product_name}" == "punchout" ]
+		_check_liferay_marketplace_product_activation_key "${liferay_marketplace_product_name}"
+
+		if [[ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]]
 		then
-			_check_punchout2go_activation_key
+			stop_tomcat &> /dev/null
 
-			if [[ "${?}" -eq "${LIFERAY_COMMON_EXIT_CODE_BAD}" ]]
-			then
-				stop_tomcat &> /dev/null
-
-				return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-			fi
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 		fi
 	done
 
 	stop_tomcat &> /dev/null
+}
+
+function _check_liferay_marketplace_product_activation_key {
+	local product_name=${1}
+
+	local liferay_marketplace_product_activation_key_name=$(_get_liferay_marketplace_product_activation_key_name "${product_name}")
+
+	if [ -z "${liferay_marketplace_product_activation_key_name}" ]
+	then
+		lc_log INFO "The activation key should not be checked for product ${product_name}."
+
+		return
+	fi
+
+	if grep --quiet "${liferay_marketplace_product_activation_key_name} license validation passed" "${_LIFERAY_MARKETPLACE_PRODUCTS_DEPLOYMENT_LOG_FILE}"
+	then
+		lc_log INFO "The ${liferay_marketplace_product_activation_key_name} activation key was processed successfully."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_OK}"
+	fi
+
+	lc_log ERROR "Unable to process the ${liferay_marketplace_product_activation_key_name} activation key."
+
+	return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 }
 
 function _check_liferay_marketplace_product_compatibility {
@@ -127,7 +154,7 @@ function _check_liferay_marketplace_product_compatibility {
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
 
-	local modules_info=$(blade sh lb -s | grep "${product_name}")
+	local modules_info=$(blade sh lb -s | grep --extended-regexp "$(_get_liferay_marketplace_product_module_regex "${product_name}")")
 
 	if [ -z "${modules_info}" ]
 	then
@@ -136,9 +163,15 @@ function _check_liferay_marketplace_product_compatibility {
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
 
-	if echo "${modules_info}" | grep --extended-regexp --invert-match "Active|Resolved" &> /dev/null
+	if echo "${modules_info}" | \
+		grep \
+			--extended-regexp \
+			--invert-match \
+			"Active|Resolved" &> /dev/null
 	then
 		lc_log ERROR "One or more modules of Liferay Marketplace product ${product_name} are not compatible with release ${_PRODUCT_VERSION}:"
+
+		local module_info
 
 		while IFS= read -r module_info
 		do
@@ -175,23 +208,36 @@ function _check_liferay_marketplace_product_compatibility {
 
 	if [ -z "${LIFERAY_RELEASE_TEST_MODE}" ]
 	then
-		lc_log INFO "Module ${product_name} is compatible with release ${_PRODUCT_VERSION}. Updating list of supported versions."
+		lc_log INFO "Module ${product_name} is compatible with release ${_PRODUCT_VERSION}."
 
 		_update_product_supported_versions "${product_external_reference_code}" "${product_name}"
 	fi
 }
 
-function _check_punchout2go_activation_key {
-	if grep --quiet "Liferay Commerce Connector to PunchOut2Go license validation passed" "${_LIFERAY_MARKETPLACE_PRODUCTS_DEPLOYMENT_LOG_FILE}"
-	then
-		lc_log INFO "The Punchout2Go activation key was processed successfully."
+function _deploy_liferay_marketplace_product_activation_key {
+	local product_name=${1}
 
-		return "${LIFERAY_COMMON_EXIT_CODE_OK}"
+	local liferay_marketplace_product_activation_key_name=$(_get_liferay_marketplace_product_activation_key_name "${product_name}")
+
+	if [ -z "${liferay_marketplace_product_activation_key_name}" ]
+	then
+		lc_log INFO "The activation key should not be deployed for product ${product_name}."
+
+		return
 	fi
 
-	lc_log ERROR "Unable to process the Punchout2Go activation key."
+	local liferay_marketplace_product_activation_key=$(_get_liferay_marketplace_product_activation_key "${product_name}")
 
-	return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	if [ ! -f "${liferay_marketplace_product_activation_key}" ]
+	then
+		lc_log ERROR "Unable to deploy the ${liferay_marketplace_product_activation_key_name} activation key because the activation key is not set or the file does not exist."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
+
+	lc_log INFO "Deploying the ${liferay_marketplace_product_activation_key_name} activation key to ${_BUNDLES_DIR}/deploy."
+
+	cp "${liferay_marketplace_product_activation_key}" "${_BUNDLES_DIR}/deploy"
 }
 
 function _deploy_liferay_marketplace_product_zip_file {
@@ -232,35 +278,6 @@ function _deploy_liferay_marketplace_product_zip_file {
 	if [[ "${?}" -ne 0 ]]
 	then
 		lc_log ERROR "Unable to deploy $(basename "${liferay_marketplace_product_zip_file_path}") to ${_BUNDLES_DIR}/deploy."
-
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-}
-
-function _deploy_punchout2go_activation_key {
-	local activation_key_year=$(date +%Y)
-
-	if [[ "$(date +%-m)" -lt 4 ]]
-	then
-		activation_key_year=$((activation_key_year - 1))
-	fi
-
-	local activation_key_file_path=$(_get_punchout2go_activation_key "${activation_key_year}")
-
-	if [ ! -f "${activation_key_file_path}" ]
-	then
-		lc_log ERROR "Unable to deploy the Punchout2Go activation key for ${activation_key_year} because the activation key is not set or the file does not exist."
-
-		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
-	fi
-
-	lc_log INFO "Deploying the Punchout2Go activation key for ${activation_key_year} to ${_BUNDLES_DIR}/deploy."
-
-	cp "${activation_key_file_path}" "${_BUNDLES_DIR}/deploy"
-
-	if [[ "${?}" -ne 0 ]]
-	then
-		lc_log ERROR "Unable to deploy the Punchout2Go activation key."
 
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
@@ -325,6 +342,42 @@ function _download_product_by_external_reference_code {
 	fi
 }
 
+function _get_cmp_activation_key {
+	local activation_key_year=${1}
+
+	if [[ "${activation_key_year}" -eq 2026 ]]
+	then
+		echo "${LIFERAY_CMP_ACTIVATION_KEY_2026}"
+	elif [[ "${activation_key_year}" -eq 2027 ]]
+	then
+		echo "${LIFERAY_CMP_ACTIVATION_KEY_2027}"
+	elif [[ "${activation_key_year}" -eq 2028 ]]
+	then
+		echo "${LIFERAY_CMP_ACTIVATION_KEY_2028}"
+	elif [[ "${activation_key_year}" -eq 2029 ]]
+	then
+		echo "${LIFERAY_CMP_ACTIVATION_KEY_2029}"
+	fi
+}
+
+function _get_dsr_activation_key {
+	local activation_key_year=${1}
+
+	if [[ "${activation_key_year}" -eq 2026 ]]
+	then
+		echo "${LIFERAY_DSR_ACTIVATION_KEY_2026}"
+	elif [[ "${activation_key_year}" -eq 2027 ]]
+	then
+		echo "${LIFERAY_DSR_ACTIVATION_KEY_2027}"
+	elif [[ "${activation_key_year}" -eq 2028 ]]
+	then
+		echo "${LIFERAY_DSR_ACTIVATION_KEY_2028}"
+	elif [[ "${activation_key_year}" -eq 2029 ]]
+	then
+		echo "${LIFERAY_DSR_ACTIVATION_KEY_2029}"
+	fi
+}
+
 function _get_latest_product_virtual_settings_file_entry_json_index {
 	local product_virtual_settings_file_entries=${1}
 
@@ -352,6 +405,81 @@ function _get_latest_product_virtual_settings_file_entry_json_index {
 	fi
 
 	echo "${latest_product_virtual_settings_file_entry_json_index}"
+}
+
+function _get_liferay_marketplace_product_activation_key {
+	local product_name=${1}
+
+	local activation_key_year=$(date --date "$(get_today)" +%Y)
+
+	if [ "${product_name}" == "cmp" ]
+	then
+		_get_cmp_activation_key "${activation_key_year}"
+	elif [ "${product_name}" == "dsr" ]
+	then
+		_get_dsr_activation_key "${activation_key_year}"
+	elif [ "${product_name}" == "punchout" ]
+	then
+		if [[ "$(date --date "$(get_today)" +%-m)" -lt 4 ]]
+		then
+			activation_key_year=$((activation_key_year - 1))
+		fi
+
+		_get_punchout2go_activation_key "${activation_key_year}"
+	fi
+}
+
+function _get_liferay_marketplace_product_activation_key_name {
+	local product_name=${1}
+
+	if [ "${product_name}" == "cmp" ]
+	then
+		echo "Content Marketing Platform"
+	elif [ "${product_name}" == "dsr" ]
+	then
+		echo "Digital Sales Room"
+	elif [ "${product_name}" == "punchout" ]
+	then
+		echo "Liferay Commerce Connector to PunchOut2Go"
+	fi
+}
+
+function _get_liferay_marketplace_product_module_regex {
+	local product_name=${1}
+
+	if [ "${product_name}" == "cmp" ]
+	then
+		echo "cmp|content.marketing.platform"
+	elif [ "${product_name}" == "dsr" ]
+	then
+		echo "dsr|digital.sales.room"
+	else
+		echo "${product_name}"
+	fi
+}
+
+function _get_liferay_marketplace_product_names_by_release {
+	local liferay_marketplace_product_names=("${@}")
+
+	if is_first_quarterly_release && ! is_cms_standalone_release
+	then
+		if is_early_product_version_than "2026.q3.0"
+		then
+			printf "%s\n" "${liferay_marketplace_product_names[@]}" | \
+				grep --extended-regexp --invert-match "^(cmp|dsr)$" | \
+				sort --ignore-case
+		else
+			printf "%s\n" "${liferay_marketplace_product_names[@]}" | sort --ignore-case
+		fi
+	elif is_quarterly_release && is_equals_or_later_product_version_than "2026.q3.0"
+	then
+		if is_cms_standalone_release
+		then
+			printf "%s\n" "cmp"
+		else
+			printf "%s\n" "cmp" "dsr"
+		fi
+	fi
 }
 
 function _get_product_by_external_reference_code {
@@ -482,6 +610,13 @@ function _update_product_supported_versions {
 
 	local product_external_reference_code=${1}
 	local product_name=${2}
+
+	if [ "${product_name}" == "cmp" ] || [ "${product_name}" == "dsr" ]
+	then
+		lc_log INFO "The list of supported versions should not be updated for product ${product_name}."
+
+		return "${LIFERAY_COMMON_EXIT_CODE_SKIPPED}"
+	fi
 
 	local product_virtual_settings_file_entries=$(_get_product_virtual_settings_file_entries_by_external_reference_code "${product_external_reference_code}")
 
