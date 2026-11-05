@@ -56,7 +56,7 @@ function check_usage {
 
 	set_product_version "${LIFERAY_RELEASE_VERSION}" "${LIFERAY_RELEASE_RC_BUILD_TIMESTAMP}"
 
-	lc_cd "$(dirname "$(readlink /proc/$$/fd/255 2> /dev/null)")"
+	lc_cd "$(dirname "$(readlink "/proc/${$}/fd/255" 2> /dev/null)")"
 
 	_RELEASE_ROOT_DIR=${PWD}
 
@@ -217,6 +217,13 @@ function prepare_next_release_pull_request {
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
 
+	close_jira_issue "${issue_key}"
+
+	if [[ "${?}" -ne 0 ]]
+	then
+		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+	fi
+
 	commit_changes \
 		"${_PROJECTS_DIR}/liferay-portal-ee/release.properties" \
 		"${issue_key} prep next"
@@ -231,7 +238,8 @@ function prepare_next_release_pull_request {
 			"${base_branch}" \
 			"${_TEMP_BRANCH}" \
 			"brianchandotcom/liferay-portal-ee" \
-			"${issue_key} prep next | ${base_branch}"
+			"${issue_key} prep next | ${base_branch}" \
+			"cc @joshitagaki @nikki-pru"
 
 		exit_code=${?}
 	fi
@@ -243,10 +251,6 @@ function prepare_next_release_pull_request {
 		lc_log ERROR "Unable to send pull request to the release branch."
 	else
 		lc_log INFO "The next release branch was prepared successfully."
-
-		add_jira_issue_comment_with_mention \
-			"Related pull request: $(get_pull_request_url "${_TEMP_BRANCH}" brianchandotcom/liferay-portal-ee). cc " \
-			"${issue_key}"
 	fi
 
 	return "${exit_code}"
@@ -321,8 +325,8 @@ function reference_new_releases {
 	local previous_product_version=$( \
 		grep "portal.latest.bundle.version\[${product_group_version}" \
 			"build-shared.properties" | \
-			tail --lines=1 | \
-			cut --delimiter='=' --fields=2)
+		tail --lines=1 | \
+		cut --delimiter='=' --fields=2)
 
 	if [ -z "${previous_product_version}" ]
 	then
@@ -332,6 +336,8 @@ function reference_new_releases {
 				"build-shared.properties" | \
 			cut --delimiter='=' --fields=2)
 	fi
+
+	local component
 
 	for component in osgi sql tools
 	do
@@ -369,8 +375,8 @@ function reference_new_releases {
 	local latest_product_group_version=$( \
 		grep "portal.latest.bundle.version\[master\]=" \
 			"build-shared.properties" | \
-			cut --delimiter='=' --fields=2 | \
-			cut --delimiter='.' --fields=1,2)
+		cut --delimiter='=' --fields=2 | \
+		cut --delimiter='.' --fields=1,2)
 
 	if [ "${product_group_version}" == "${latest_product_group_version}" ] || [ "${latest_quarterly_release}" == "true" ]
 	then
@@ -383,9 +389,9 @@ function reference_new_releases {
 	local previous_quarterly_release_branch=$( \
 		grep "portal.latest.bundle.version" \
 			"build-shared.properties" | \
-			tail --lines=1 | \
-			cut --delimiter='[' --fields=2 | \
-			cut --delimiter=']' --fields=1)
+		tail --lines=1 | \
+		cut --delimiter='[' --fields=2 | \
+		cut --delimiter=']' --fields=1)
 
 	local quarterly_release_branch="release-$(get_product_group_version)"
 
@@ -469,6 +475,8 @@ function set_next_release_date {
 }
 
 function set_next_release_version_display_name {
+	local branch
+
 	for branch in master-private release-private
 	do
 		sed \
@@ -517,6 +525,8 @@ function tag_release {
 
 	if is_7_4_u_release
 	then
+		local repository
+
 		for repository in liferay-portal liferay-portal-ee
 		do
 			local temp_branch="release-$( \
@@ -570,16 +580,21 @@ function test_boms {
 
 	if [ "$(get_product_group_version)" == "2024.q1" ]
 	then
-		sed --expression "/com.liferay.gradle.plugins.workspace/s/version: \"[^\"]*\"/version: \"14.0.1\"/" --in-place settings.gradle
+		sed \
+			--expression "/com.liferay.gradle.plugins.workspace/s/version: \"[^\"]*\"/version: \"14.0.1\"/" \
+			--in-place \
+			settings.gradle
 	fi
 
 	lc_log INFO "Searching for ${_PRODUCT_VERSION} in .liferay/workspace/releases.json."
 
 	grep "${_PRODUCT_VERSION}" "${HOME}/.liferay/workspace/releases.json"
 
+	local module
+
 	for module in api mvc-portlet
 	do
-		blade create -t "${module}" "test-${module}"
+		blade create --template "${module}" "test-${module}"
 
 		local build_result=$(blade gw build)
 
