@@ -171,6 +171,22 @@ function check_usage {
 function download_trial_dxp_license {
 	rm --force --recursive "${TEMP_DIR}/liferay/data/license"
 
+	if is_cms_release "${LIFERAY_DOCKER_RELEASE_VERSION}"
+	then
+		if [ ! -f "${LIFERAY_CMS_TRIAL_ACTIVATION_KEY}" ]
+		then
+			echo "Set the environment variable LIFERAY_CMS_TRIAL_ACTIVATION_KEY to an existing CMS license file."
+
+			exit 4
+		fi
+
+		mkdir --parents "${TEMP_DIR}/liferay/deploy"
+
+		cp "${LIFERAY_CMS_TRIAL_ACTIVATION_KEY}" "${TEMP_DIR}/liferay/deploy"
+
+		return
+	fi
+
 	if ! ./download_trial_dxp_license.sh "${TEMP_DIR}/liferay" "$(date "${CURRENT_DATE}" "+%s000")"
 	then
 		exit 4
@@ -440,6 +456,7 @@ function print_help {
 	echo ""
 	echo "The script reads the following environment variables:"
 	echo ""
+	echo "    LIFERAY_CMS_TRIAL_ACTIVATION_KEY (optional): Path to the license file deployed in CMS images"
 	echo "    LIFERAY_DOCKER_DEVELOPER_MODE (optional): If set to \"true\", all local images will be deleted before building a new one"
 	echo "    LIFERAY_DOCKER_FIX_PACK_URL (optional): URL to a fix pack"
 	echo "    LIFERAY_DOCKER_HUB_TOKEN (optional): Docker Hub token to log in automatically"
