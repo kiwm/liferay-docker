@@ -134,6 +134,15 @@ function get_product_group_version {
 	echo "$(_get_product_version "${1}")" | cut --delimiter='.' --fields=1,2
 }
 
+function get_product_name {
+	if is_cms_release "${1}"
+	then
+		echo "cms"
+	else
+		echo "dxp"
+	fi
+}
+
 function get_product_version_without_cms_suffix {
 	echo "$(_get_product_version "${1}")" | sed --expression "s/-cms//"
 }
