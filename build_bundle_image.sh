@@ -171,7 +171,7 @@ function check_usage {
 function download_trial_license {
 	rm --force --recursive "${TEMP_DIR}/liferay/data/license"
 
-	if ! ./download_trial_license.sh "${TEMP_DIR}/liferay" "$(date "${CURRENT_DATE}" "+%s000")"
+	if ! ./download_trial_license.sh "${TEMP_DIR}/liferay" "$(date "${CURRENT_DATE}" "+%s000")" "$(get_product_name "${LIFERAY_DOCKER_RELEASE_VERSION}")"
 	then
 		exit 4
 	fi
@@ -439,8 +439,8 @@ function print_help {
 	echo "    LIFERAY_DOCKER_HUB_TOKEN (optional): Docker Hub token to log in automatically"
 	echo "    LIFERAY_DOCKER_HUB_USERNAME (optional): Docker Hub username to log in automatically"
 	echo "    LIFERAY_DOCKER_IMAGE_PLATFORMS (optional): Comma separated Docker image platforms to build when the \"push\" parameter is set"
-	echo "    LIFERAY_DOCKER_LICENSE_API_HEADER (required): API header used to generate the trial license"
-	echo "    LIFERAY_DOCKER_LICENSE_API_URL (required): API URL to generate the trial license"
+	echo "    LIFERAY_DOCKER_LICENSE_API_OAUTH2_CLIENT_ID (required): OAuth2 client ID used to generate the trial license"
+	echo "    LIFERAY_DOCKER_LICENSE_API_OAUTH2_CLIENT_SECRET (required): OAuth2 client secret used to generate the trial license"
 	echo "    LIFERAY_DOCKER_RELEASE_CANDIDATE (optional): If set to \"true\", a release candidate will be uploaded to Docker Hub"
 	echo "    LIFERAY_DOCKER_RELEASE_FILE_URL (required): URL to a Liferay bundle"
 	echo "    LIFERAY_DOCKER_REPOSITORY (optional): Docker repository"
