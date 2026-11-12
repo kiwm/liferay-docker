@@ -173,11 +173,8 @@ function get_release_dir_name {
 	if is_weekly_cms_release
 	then
 		echo "cms-weekly"
-	elif is_cms_release "${product_version}"
-	then
-		echo "cms/${product_version}"
 	else
-		echo "dxp/${product_version}"
+		echo "$(get_product_name "${product_version}")/${product_version}"
 	fi
 }
 

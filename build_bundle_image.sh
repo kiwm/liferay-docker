@@ -181,21 +181,15 @@ function get_docker_image_name {
 	if (is_release_candidate || is_weekly_cms_release)
 	then
 		echo "release-candidates"
-	elif is_cms_release "${1}"
-	then
-		echo "cms"
 	else
-		echo "dxp"
+		get_product_name "${1}"
 	fi
 }
 
 function get_docker_label_name {
-	if is_cms_release "${1}"
-	then
-		echo "Liferay CMS"
-	else
-		echo "Liferay DXP"
-	fi
+	local product_name=$(get_product_name "${1}")
+
+	echo "Liferay ${product_name^^}"
 }
 
 function get_latest_tomcat_version {
