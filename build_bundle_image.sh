@@ -168,10 +168,10 @@ function check_usage {
 	check_utils 7z curl docker java unzip
 }
 
-function download_trial_dxp_license {
+function download_trial_license {
 	rm --force --recursive "${TEMP_DIR}/liferay/data/license"
 
-	if ! ./download_trial_dxp_license.sh "${TEMP_DIR}/liferay" "$(date "${CURRENT_DATE}" "+%s000")"
+	if ! ./download_trial_license.sh "${TEMP_DIR}/liferay" "$(date "${CURRENT_DATE}" "+%s000")"
 	then
 		exit 4
 	fi
@@ -290,7 +290,7 @@ function main {
 		fi
 	fi
 
-	download_trial_dxp_license
+	download_trial_license
 
 	build_docker_image
 
