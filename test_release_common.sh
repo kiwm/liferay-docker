@@ -17,6 +17,7 @@ function main {
 		test_release_common_get_package_dir_name
 		test_release_common_get_premium_support_lts_release_branches
 		test_release_common_get_product_group_version
+		test_release_common_get_product_name
 		test_release_common_get_product_version_without_cms_suffix
 		test_release_common_get_product_version_without_lts_suffix
 		test_release_common_get_product_version_without_suffix
@@ -133,6 +134,14 @@ function test_release_common_get_product_group_version {
 	_test_release_common_get_product_group_version "2025.q1.0-lts" "2025.q1"
 	_test_release_common_get_product_group_version "7.4.13-u149-ai-hub" "7.4"
 	_test_release_common_get_product_group_version "7.4.13.nightly" "7.4"
+}
+
+function test_release_common_get_product_name {
+	_test_release_common_get_product_name "2025.q1.0-lts" "dxp"
+	_test_release_common_get_product_name "2026.q4.0-cms" "cms"
+	_test_release_common_get_product_name "7.4.13-u124" "dxp"
+	_test_release_common_get_product_name "7.4.13-u155-cms" "cms"
+	_test_release_common_get_product_name "7.4.13.nightly" "dxp"
 }
 
 function test_release_common_get_product_version_without_cms_suffix {
@@ -479,6 +488,10 @@ function _test_release_common_get_product_group_version {
 	_PRODUCT_VERSION=${1}
 
 	assert_equals "$(get_product_group_version)" "${2}"
+}
+
+function _test_release_common_get_product_name {
+	assert_equals "$(get_product_name "${1}")" "${2}"
 }
 
 function _test_release_common_get_product_version_without_cms_suffix {

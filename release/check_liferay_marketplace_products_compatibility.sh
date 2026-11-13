@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source ../_liferay_common.sh
+source ../_one_liferay.sh
 source ../_release_common.sh
 source ./_jdk.sh
 source ./_product.sh
@@ -78,6 +79,18 @@ function check_liferay_marketplace_products_compatibility {
 	echo "include-and-override=portal-developer.properties" > "${_BUNDLES_DIR}/portal-ext.properties"
 
 	start_tomcat "print-startup-logs" >> "${_LIFERAY_MARKETPLACE_PRODUCTS_DEPLOYMENT_LOG_FILE}"
+
+	if [ -z "${LIFERAY_RELEASE_TEST_MODE}" ]
+	then
+		_set_liferay_marketplace_oauth2_token
+
+		if [[ "${?}" -ne 0 ]]
+		then
+			stop_tomcat &> /dev/null
+
+			return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
+		fi
+	fi
 
 	local incompatible_liferay_marketplace_product_names=""
 
@@ -359,7 +372,7 @@ function _download_product {
 			--retry-delay 10 \
 			--silent \
 			--write-out "%{http_code}" \
-			"https://marketplace.liferay.com/${product_download_url}")
+			"https://one.liferay.com/${product_download_url}")
 
 	if [[ "${http_code}" -ge 400 ]]
 	then
@@ -557,7 +570,7 @@ function _get_product_by_external_reference_code {
 			--retry-delay 10 \
 			--silent \
 			--write-out "%output{${http_code_file}}%{http_code}" \
-			"https://marketplace.liferay.com/o/headless-commerce-admin-catalog/v1.0/products/by-externalReferenceCode/${product_external_reference_code}?nestedFields=productVirtualSettings%2Cattachments")
+			"https://one.liferay.com/o/headless-commerce-admin-catalog/v1.0/products/by-externalReferenceCode/${product_external_reference_code}?nestedFields=productVirtualSettings%2Cattachments")
 
 	local http_code=$(cat "${http_code_file}")
 
@@ -597,7 +610,7 @@ function _get_product_virtual_settings_file_entries_by_external_reference_code {
 			--retry-delay 10 \
 			--silent \
 			--write-out "%output{${http_code_file}}%{http_code}" \
-			"https://marketplace.liferay.com/o/headless-commerce-admin-catalog/v1.0/product-virtual-settings/${product_virtual_settings_id}/product-virtual-settings-file-entries?pageSize=20")
+			"https://one.liferay.com/o/headless-commerce-admin-catalog/v1.0/product-virtual-settings/${product_virtual_settings_id}/product-virtual-settings-file-entries?pageSize=20")
 
 	local http_code=$(cat "${http_code_file}")
 
@@ -664,49 +677,31 @@ function _prepare_bundles_dir {
 }
 
 function _set_liferay_marketplace_oauth2_token {
-	local http_code_file=$(mktemp)
+	_LIFERAY_MARKETPLACE_OAUTH2_TOKEN=$(get_license_api_oauth2_access_token)
 
-	local liferay_marketplace_oauth2_token_response=$( \
-		curl \
-			--data "client_id=${LIFERAY_MARKETPLACE_OAUTH2_CLIENT_ID}&client_secret=${LIFERAY_MARKETPLACE_OAUTH2_CLIENT_SECRET}&grant_type=client_credentials" \
-			--request POST \
-			--retry 3 \
-			--retry-delay 10 \
-			--silent \
-			--write-out "%output{${http_code_file}}%{http_code}" \
-			"https://marketplace.liferay.com/o/oauth2/token")
-
-	local http_code=$(cat "${http_code_file}")
-
-	if [[ "${http_code}" -ge 400 ]]
+	if [ -z "${_LIFERAY_MARKETPLACE_OAUTH2_TOKEN}" ]
 	then
-		lc_log ERROR "Unable to get Liferay Marketplace OAuth2 token. HTTP response code was ${http_code}."
-
-		rm --force "${http_code_file}"
+		lc_log ERROR "Unable to get Liferay Marketplace OAuth2 token."
 
 		return "${LIFERAY_COMMON_EXIT_CODE_BAD}"
 	fi
-
-	rm --force "${http_code_file}"
-
-	_LIFERAY_MARKETPLACE_OAUTH2_TOKEN=$(echo "${liferay_marketplace_oauth2_token_response}" | jq --raw-output ".access_token")
 }
 
 function _set_liferay_marketplace_products {
 	if [ -z "${LIFERAY_RELEASE_TEST_MODE}" ]
 	then
 		declare -A -g LIFERAY_MARKETPLACE_PRODUCTS=(
-			["adyen"]="f05ab2d6-1d54-c72d-988a-91fcd5669ef3"
-			["cmp"]="d85abb01-6c60-addd-0f73-6621612aae72"
-			["drools"]="15099181"
-			["dsr"]="DSR"
-			["hubspot"]="53d5501f-abd7-b579-af7f-56b8b15966d0"
-			["liferaycommerceminium4globalcss"]="ebcf98b3-9844-b783-757a-579944b18b00"
-			["liferaypaypalbatch"]="a1946869-212f-0793-d703-b623d0f149a6"
-			["liferayupscommerceshippingengine"]="f1cb4b5e-fbdd-7f70-df5d-9f1a736784b2"
-			["opensearch"]="ea19fdc8-b908-690d-9f90-15edcdd23a87"
-			["punchout"]="175496027"
-			["stripe"]="6a02a832-083b-f08c-888a-0a59d7c09119"
+			["adyen"]="marketplace-product-26028526"
+			["cmp"]="marketplace-product-32653971"
+			["drools"]="marketplace-product-18375358"
+			["dsr"]="marketplace-product-33597098"
+			["hubspot"]="marketplace-product-31948882"
+			["liferaycommerceminium4globalcss"]="marketplace-product-27830822"
+			["liferaypaypalbatch"]="marketplace-product-26268023"
+			["liferayupscommerceshippingengine"]="marketplace-product-25993642"
+			["opensearch"]="marketplace-product-33736628"
+			["punchout"]="marketplace-product-18657298"
+			["stripe"]="marketplace-product-21724895"
 		)
 	fi
 }
@@ -747,7 +742,7 @@ function _update_product_supported_versions {
 				--retry-delay 10 \
 				--silent \
 				--write-out "%{http_code}" \
-				"https://marketplace.liferay.com/o/headless-commerce-admin-catalog/v1.0/product-virtual-settings-file-entries/${latest_product_virtual_file_entry_id}")
+				"https://one.liferay.com/o/headless-commerce-admin-catalog/v1.0/product-virtual-settings-file-entries/${latest_product_virtual_file_entry_id}")
 
 		if [[ "${http_code}" -ge 400 ]]
 		then
@@ -780,7 +775,7 @@ function _update_product_supported_versions {
 				--retry-delay 10 \
 				--silent \
 				--write-out "%{http_code}" \
-				"https://marketplace.liferay.com/o/headless-commerce-admin-catalog/v1.0/products/by-externalReferenceCode/${product_external_reference_code}/product-specifications")
+				"https://one.liferay.com/o/headless-commerce-admin-catalog/v1.0/products/by-externalReferenceCode/${product_external_reference_code}/product-specifications")
 
 		if [[ "${http_code}" -ge 400 ]]
 		then

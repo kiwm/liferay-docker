@@ -168,10 +168,10 @@ function check_usage {
 	check_utils 7z curl docker java unzip
 }
 
-function download_trial_dxp_license {
+function download_trial_license {
 	rm --force --recursive "${TEMP_DIR}/liferay/data/license"
 
-	if ! ./download_trial_dxp_license.sh "${TEMP_DIR}/liferay" "$(date "${CURRENT_DATE}" "+%s000")"
+	if ! ./download_trial_license.sh "${TEMP_DIR}/liferay" "$(date "${CURRENT_DATE}" "+%s000")" "$(get_product_name "${LIFERAY_DOCKER_RELEASE_VERSION}")"
 	then
 		exit 4
 	fi
@@ -181,21 +181,15 @@ function get_docker_image_name {
 	if (is_release_candidate || is_weekly_cms_release)
 	then
 		echo "release-candidates"
-	elif is_cms_release "${1}"
-	then
-		echo "cms"
 	else
-		echo "dxp"
+		get_product_name "${1}"
 	fi
 }
 
 function get_docker_label_name {
-	if is_cms_release "${1}"
-	then
-		echo "Liferay CMS"
-	else
-		echo "Liferay DXP"
-	fi
+	local product_name=$(get_product_name "${1}")
+
+	echo "Liferay ${product_name^^}"
 }
 
 function get_latest_tomcat_version {
@@ -296,7 +290,7 @@ function main {
 		fi
 	fi
 
-	download_trial_dxp_license
+	download_trial_license
 
 	build_docker_image
 
@@ -445,8 +439,8 @@ function print_help {
 	echo "    LIFERAY_DOCKER_HUB_TOKEN (optional): Docker Hub token to log in automatically"
 	echo "    LIFERAY_DOCKER_HUB_USERNAME (optional): Docker Hub username to log in automatically"
 	echo "    LIFERAY_DOCKER_IMAGE_PLATFORMS (optional): Comma separated Docker image platforms to build when the \"push\" parameter is set"
-	echo "    LIFERAY_DOCKER_LICENSE_API_HEADER (required): API header used to generate the trial license"
-	echo "    LIFERAY_DOCKER_LICENSE_API_URL (required): API URL to generate the trial license"
+	echo "    LIFERAY_DOCKER_LICENSE_API_OAUTH2_CLIENT_ID (required): OAuth2 client ID used to generate the trial license"
+	echo "    LIFERAY_DOCKER_LICENSE_API_OAUTH2_CLIENT_SECRET (required): OAuth2 client secret used to generate the trial license"
 	echo "    LIFERAY_DOCKER_RELEASE_CANDIDATE (optional): If set to \"true\", a release candidate will be uploaded to Docker Hub"
 	echo "    LIFERAY_DOCKER_RELEASE_FILE_URL (required): URL to a Liferay bundle"
 	echo "    LIFERAY_DOCKER_REPOSITORY (optional): Docker repository"
