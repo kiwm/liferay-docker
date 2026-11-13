@@ -134,6 +134,15 @@ function get_product_group_version {
 	echo "$(_get_product_version "${1}")" | cut --delimiter='.' --fields=1,2
 }
 
+function get_product_name {
+	if is_cms_release "${1}"
+	then
+		echo "cms"
+	else
+		echo "dxp"
+	fi
+}
+
 function get_product_version_without_cms_suffix {
 	echo "$(_get_product_version "${1}")" | sed --expression "s/-cms//"
 }
@@ -164,11 +173,8 @@ function get_release_dir_name {
 	if is_weekly_cms_release
 	then
 		echo "cms-weekly"
-	elif is_cms_release "${product_version}"
-	then
-		echo "cms/${product_version}"
 	else
-		echo "dxp/${product_version}"
+		echo "$(get_product_name "${product_version}")/${product_version}"
 	fi
 }
 
